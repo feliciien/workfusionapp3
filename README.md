@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Workfusion Trading AI
 
-## Getting Started
+Workfusion Trading AI is a SaaS MVP for MT4/MT5 Expert Advisor builders.
 
-First, run the development server:
+It helps traders:
+
+- Generate EA drafts from plain-English strategy ideas.
+- Debug MQL4/MQL5 code and compiler errors.
+- Analyze trading reports and identify risk issues.
+- Optimize prop-firm settings before demo or live testing.
+- Download generated code artifacts.
+- Save projects through a local storage adapter.
+- Pre-check generated code and estimate backtest readiness.
+- Prepare Stripe/PayPal billing with explicit live-mode guardrails.
+
+## Product Positioning
+
+Workfusion is a software tool. It does not manage accounts, execute trades, custody funds, or guarantee profits.
+
+Core offer:
+
+> Generate, debug, and risk-check MT4/MT5 Expert Advisors for prop-firm traders.
+
+## Local Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Verification
 
-## Learn More
+```bash
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## API Routes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `POST /api/trading/generate`
+- `POST /api/trading/debug`
+- `POST /api/trading/debrief`
+- `POST /api/trading/optimize`
+- `POST /api/trading/download`
+- `POST /api/subscription/status`
+- `GET|POST /api/auth/session`
+- `GET|POST /api/projects`
+- `POST /api/workers/compile`
+- `POST /api/workers/backtest`
+- `POST /api/billing/checkout`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Billing Safety
 
-## Deploy on Vercel
+`/api/billing/checkout` only creates provider checkout/approval sessions when:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```text
+WORKFUSION_BILLING_MODE=live
+NEXT_PUBLIC_APP_URL=https://www.workfusionapp.com
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID=...
+NEXT_PUBLIC_PAYPAL_YEARLY_PLAN_ID=...
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Stripe also requires:
+
+```text
+STRIPE_SECRET_KEY=...
+STRIPE_PRICE_STARTER=...
+STRIPE_PRICE_PRO=...
+STRIPE_PRICE_STUDIO=...
+```
+
+## Launch Checklist
+
+- Connect Stripe price IDs or PayPal order capture before public paid launch.
+- Add Terms of Service and Privacy Policy.
+- Add production logging and rate limits.
+- Add user accounts and persistent project storage.
+- Add a real MQL compile/test worker before marketing outputs as production-ready.
