@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { analyzeSupportMessage } from "@/lib/workfusion/openai";
-import { queueSupportNotification } from "@/lib/workfusion/outbox";
+import { sendSupportNotification } from "@/lib/workfusion/outbox";
 import { getPersistentAccess } from "@/lib/workfusion/account-store";
 import { getSession, isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
 import { listSupportMessages, saveSupportMessage } from "@/lib/workfusion/support-store";
@@ -62,7 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: "website_support_form",
     },
   });
-  const notification = queueSupportNotification({
+  const notification = await sendSupportNotification({
     ticketId: saved.id,
     subject: subject || ai.category,
     ownerBrief: ai.ownerBrief,
