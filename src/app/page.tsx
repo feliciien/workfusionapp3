@@ -15,6 +15,21 @@ type TradingResult = {
   fixes?: string[];
   params?: Record<string, string>;
   filename?: string;
+  worker?: string;
+  status?: string;
+  score?: number;
+  diagnostics?: string[];
+  compiled?: boolean;
+  compiler?: {
+    mode?: string;
+    available?: boolean;
+    message?: string;
+    returnCode?: number | null;
+    sourceFile?: string;
+    artifactFile?: string;
+    logFile?: string;
+    logTail?: string[];
+  };
   plan?: string;
   remaining?: Record<string, number>;
   ai?: {
@@ -73,8 +88,8 @@ const platforms = [
 
 const proofCards = [
   ["Generate", "Turn a plain strategy brief into structured MQL with risk controls."],
-  ["Debug", "Paste compiler output and get a cleaner EA scaffold plus fix notes."],
-  ["Validate", "Score prop-firm risk, drawdown rules, spread filters, and trade hygiene."],
+  ["Debug", "Paste compiler output and get a compile-ready EA replacement plus fix notes."],
+  ["Compile", "Run MetaEditor when configured, or show an honest static pre-check."],
   ["Package", "Save projects, download EA drafts, and keep a technical audit trail."],
 ];
 
@@ -362,7 +377,11 @@ export default function Home() {
         return;
       }
       setResult(data);
-      notify({ tone: "success", title: `${label} complete`, body: data.summary || data.message || "Artifact generated successfully." });
+      notify({
+        tone: data.compiled === false && data.compiler?.mode === "static_precheck" ? "warning" : "success",
+        title: `${label} complete`,
+        body: data.summary || data.message || data.compiler?.message || "Artifact generated successfully.",
+      });
     } catch {
       setResult({ error: "Request failed. Check the deployment logs and API route." });
       notify({ tone: "error", title: `${label} failed`, body: "Network request failed." });
@@ -673,7 +692,19 @@ export default function Home() {
               <Button disabled={!!activeAction} onClick={() => run("/api/trading/debrief", { source: "manual", content: idea, market, propMode }, "Analyze")} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
                 Analyze report
               </Button>
-              <Button disabled={!!activeAction} onClick={() => run("/api/trading/download", { filename: "workfusion-ea.mq5", content: result?.mql5Code || result?.fixedCode || "" }, "Download")} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
+              <Button
+                disabled={!!activeAction}
+                onClick={() => run(
+                  "/api/trading/download",
+                  {
+                    filename: platform === "mt4" ? "workfusion-ea.mq4" : "workfusion-ea.mq5",
+                    content: result?.mql5Code || result?.fixedCode || "",
+                  },
+                  "Download",
+                )}
+                variant="outline"
+                className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800"
+              >
                 Download EA
               </Button>
             </div>
@@ -716,8 +747,21 @@ export default function Home() {
               <Button disabled={!!activeAction} onClick={() => run("/api/trading/debug", { platform, code: debugCode, errors: debugErrors }, "Debug")} className="rounded-lg bg-amber-300 text-[#101112] hover:bg-amber-200">
                 Fix code
               </Button>
-              <Button disabled={!!activeAction} onClick={() => run("/api/workers/compile", { code: result?.mql5Code || result?.fixedCode || debugCode }, "Compile")} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
-                Compile check
+              <Button
+                disabled={!!activeAction}
+                onClick={() => run(
+                  "/api/workers/compile",
+                  {
+                    code: result?.mql5Code || result?.fixedCode || debugCode,
+                    platform,
+                    filename: platform === "mt4" ? "workfusion-ea.mq4" : "workfusion-ea.mq5",
+                  },
+                  "Compile",
+                )}
+                variant="outline"
+                className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800"
+              >
+                Compile EA
               </Button>
               <Button disabled={!!activeAction} onClick={() => run("/api/workers/backtest", { code: result?.mql5Code || result?.fixedCode || debugCode, idea }, "Backtest")} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
                 Backtest estimate
@@ -738,6 +782,17 @@ export default function Home() {
                       AI {result.ai.status || "unknown"} | {result.ai.provider || "openai"} | {result.ai.model || "gpt-5.5"}
                     </p>
                   )}
+                  {result?.compiler && (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                      <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">
+                        Compiler {result.compiler.mode || "unknown"} | {result.compiled ? "compiled" : "not compiled"} | {result.status || "unknown"}
+                      </p>
+                      <p className="mt-2 text-zinc-300">{result.compiler.message}</p>
+                      {result.compiler.artifactFile && <p className="mt-1 text-xs text-emerald-300">Artifact: {result.compiler.artifactFile}</p>}
+                      {typeof result.score === "number" && <p className="mt-1 text-xs text-zinc-500">Compile score: {result.score}/100</p>}
+                    </div>
+                  )}
+                  {result?.diagnostics && <p>Diagnostics: {result.diagnostics.join(" | ")}</p>}
                   {result?.issues && <p>Issues: {result.issues.join(" | ")}</p>}
                   {result?.fixes && <p>Fixes: {result.fixes.join(" | ")}</p>}
                   {result?.params && <p>Params: {Object.entries(result.params).map(([k, v]) => `${k}: ${v}`).join(" | ")}</p>}

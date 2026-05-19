@@ -260,8 +260,9 @@ if (adminToken) {
 await check("worker compile precheck responds", async () => {
   const { response, data } = await request("POST", "/api/workers/compile", { body: { code: "int OnInit(){return INIT_SUCCEEDED;}" } });
   assert(response.ok, `compile ${response.status}`);
-  assert(data.worker === "static-mql-precheck", "wrong worker");
-  return data.status || "compile checked";
+  assert(["static-mql-precheck", "metaeditor-mql-compiler"].includes(data.worker), "wrong worker");
+  assert(data.compiler?.mode, "compiler mode missing");
+  return `${data.worker} ${data.status || "compile checked"}`;
 });
 
 await check("worker backtest estimate responds", async () => {

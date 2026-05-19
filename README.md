@@ -10,7 +10,7 @@ It helps traders:
 - Optimize prop-firm settings before demo or live testing.
 - Download generated code artifacts.
 - Save projects through a local storage adapter.
-- Pre-check generated code and estimate backtest readiness.
+- Pre-check generated code, optionally compile MT5 `.mq5` files through MetaEditor, and estimate backtest readiness.
 - Prepare Stripe/PayPal billing with explicit live-mode guardrails.
 
 ## Product Positioning
@@ -39,6 +39,18 @@ http://localhost:3000
 npm run lint
 npm run build
 ```
+
+## Optional Real MT5 Compiler
+
+`POST /api/workers/compile` always returns a static MQL pre-check. To make it run a real MetaEditor compile on a Mac/VPS with Wine and MT5 installed, set:
+
+```text
+WORKFUSION_METAEDITOR_ROOT=/path/to/MetaTrader 5
+WORKFUSION_WINE_BIN=wine
+WORKFUSION_METAEDITOR_TIMEOUT_MS=180000
+```
+
+The root folder must contain `MetaEditor64.exe`. When configured, the API writes the submitted `.mq5` into `MQL5/Experts/WorkfusionCompilerJobs/`, calls MetaEditor, and reports whether an `.ex5` artifact was produced. Vercel deployments normally run in `static_precheck` mode because MetaEditor/Wine is not available there.
 
 ## API Routes
 
@@ -82,4 +94,4 @@ STRIPE_PRICE_STUDIO=...
 - Add Terms of Service and Privacy Policy.
 - Add production logging and rate limits.
 - Add user accounts and persistent project storage.
-- Add a real MQL compile/test worker before marketing outputs as production-ready.
+- Use a dedicated Mac/VPS compiler worker before marketing browser-only SaaS outputs as guaranteed production-ready.

@@ -1,12 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { compileCheck } from "@/lib/workfusion/worker";
+import { compileMql } from "@/lib/workfusion/mql-compiler";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export const config = {
+  maxDuration: 60,
+};
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const code = String(req.body?.code || "");
-  return res.status(200).json({
-    worker: "static-mql-precheck",
-    ...compileCheck(code),
+  const result = await compileMql({
+    code,
+    filename: String(req.body?.filename || ""),
+    platform: String(req.body?.platform || ""),
   });
+  return res.status(200).json(result);
 }
