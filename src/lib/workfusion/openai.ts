@@ -28,7 +28,6 @@ export function workfusionModel() {
 export function aiMeta(result: WorkfusionAiResult) {
   return {
     provider: result.provider,
-    model: result.model,
     status: result.ok ? "live" : "fallback",
     error: result.ok ? undefined : result.error,
   };

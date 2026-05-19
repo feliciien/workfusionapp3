@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getPersistentAccess } from "@/lib/workfusion/account-store";
-import { workfusionModel } from "@/lib/workfusion/openai";
 import { getSession } from "@/lib/workfusion/session";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -27,7 +26,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
     ai: {
       provider: "openai",
-      model: workfusionModel(),
       configured: Boolean(process.env.OPENAI_API_KEY),
       api: "responses",
     },

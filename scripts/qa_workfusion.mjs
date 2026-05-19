@@ -123,8 +123,9 @@ await check("subscription status exposes Postgres, PayPal, OpenAI", async () => 
   assert(response.ok, `status ${response.status}`);
   assert(data.storage === "postgres", "Postgres storage not active");
   assert(data.billing?.paypalConfigured === true, "PayPal not configured");
-  assert(data.ai?.model, "AI model missing");
-  return `${data.storage} ${data.ai.model}`;
+  assert(data.ai?.configured === true, "AI config missing");
+  assert(!data.ai?.model, "AI model should not be exposed publicly");
+  return `${data.storage} ai_configured`;
 });
 
 await check("session endpoint works for anonymous user", async () => {

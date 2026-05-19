@@ -616,7 +616,7 @@ export default function Home() {
           </div>
           <div className="mt-8 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
             {[
-              ["AI engine", result?.ai?.model || "gpt-5.5"],
+              ["AI engine", "private backend"],
               ["Plan", plan],
               ["Risk mode", propMode ? "prop on" : "manual"],
             ].map(([label, value]) => (
@@ -779,7 +779,7 @@ export default function Home() {
                   {result?.recommendation && <p className="text-emerald-200">{result.recommendation}</p>}
                   {result?.ai && (
                     <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">
-                      AI {result.ai.status || "unknown"} | {result.ai.provider || "openai"} | {result.ai.model || "gpt-5.5"}
+                      AI {result.ai.status || "unknown"} | secure backend
                     </p>
                   )}
                   {result?.compiler && (
