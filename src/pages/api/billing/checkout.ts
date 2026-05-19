@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { upsertUser } from "@/lib/workfusion/account-store";
 import { getSession } from "@/lib/workfusion/session";
+import { createSessionCookie, isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
 import { createPaypalSubscription } from "@/lib/workfusion/paypal";
 
 const priceEnv: Record<string, string | undefined> = {
@@ -16,6 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const liveEnabled = process.env.WORKFUSION_BILLING_MODE === "live";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.workfusionapp.com";
   const session = getSession(req);
+  const email = session.authenticated ? session.email : normalizeEmail(req.body?.email);
   const paidPlans = new Set(["starter", "pro", "studio"]);
 
   if (plan === "free") {
@@ -30,11 +33,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "invalid_plan", message: "Choose starter, pro, or studio." });
   }
 
-  if (!session.authenticated) {
-    return res.status(401).json({
-      error: "login_required",
-      message: "Sign in first so the subscription can be attached to your Workfusion account.",
+  if (!session.authenticated && !isValidEmail(email)) {
+    return res.status(400).json({
+      error: "email_required",
+      message: "Enter a valid email so the subscription can be attached to your Workfusion account.",
     });
+  }
+
+  if (!session.authenticated) {
+    const ownerEmail = normalizeEmail(process.env.WORKFUSION_OWNER_EMAIL);
+    const ownerToken = String(req.body?.ownerToken || "");
+    const role = ownerEmail && email === ownerEmail && ownerToken === process.env.WORKFUSION_ADMIN_TOKEN ? "owner" : "user";
+    await upsertUser({ email, role, plan: "free", lastLogin: true });
+    res.setHeader("Set-Cookie", createSessionCookie(email, role, "free"));
   }
 
   if (!liveEnabled) {
@@ -42,6 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mode: "safe_preview",
       provider,
       plan,
+      sessionAttached: true,
       configured: {
         stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_PRICE_PRO),
         paypal: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
@@ -54,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const paypal = await createPaypalSubscription({
         plan,
-        email: session.email,
+        email,
         successUrl: `${appUrl}/pricing?paypal=success&plan=${plan}`,
         cancelUrl: `${appUrl}/pricing?paypal=cancelled&plan=${plan}`,
       });
@@ -65,6 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: paypal.id,
         status: paypal.status,
         url: approval,
+        sessionAttached: true,
         message: approval ? "PayPal subscription approval URL created." : "PayPal subscription created without approval URL.",
       });
     } catch (error) {
@@ -88,12 +101,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     mode: "subscription",
     "line_items[0][price]": price,
     "line_items[0][quantity]": "1",
-    customer_email: session.email,
-    client_reference_id: session.id,
+    customer_email: email,
+    client_reference_id: session.authenticated ? session.id : `checkout_${Buffer.from(email).toString("base64url").slice(0, 48)}`,
     success_url: `${appUrl}/pricing?checkout=success`,
     cancel_url: `${appUrl}/pricing?checkout=cancelled`,
     "metadata[plan]": plan,
-    "metadata[email]": session.email,
+    "metadata[email]": email,
   });
 
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {

@@ -100,6 +100,8 @@ await check("pricing page renders checkout cards", async () => {
   const html = await response.text();
   assert(response.ok, `pricing status ${response.status}`);
   assert(html.includes("Starter") && html.includes("Pro") && html.includes("Studio"), "missing plans");
+  assert(html.includes("AI EA Generator + Debugger"), "missing pricing positioning");
+  assert(html.includes("Compare plans"), "missing comparison section");
   return "pricing ok";
 });
 
@@ -207,11 +209,11 @@ await check("project list returns saved project", async () => {
   return `${data.projects.length} projects`;
 });
 
-await check("paid checkout requires authentication", async () => {
+await check("paid checkout requires anonymous email", async () => {
   const { response, data } = await request("POST", "/api/billing/checkout", { body: { plan: "pro", provider: "paypal" } });
-  assert(response.status === 401, `expected 401 got ${response.status}`);
-  assert(data.error === "login_required", "login guard missing");
-  return "checkout guarded";
+  assert(response.status === 400, `expected 400 got ${response.status}`);
+  assert(data.error === "email_required", "email guard missing");
+  return "email guarded";
 });
 
 await check("free checkout returns active message", async () => {

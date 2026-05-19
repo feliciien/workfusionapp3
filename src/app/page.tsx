@@ -87,10 +87,10 @@ const platforms = [
 ];
 
 const proofCards = [
-  ["Generate", "Turn a plain strategy brief into structured MQL with risk controls."],
-  ["Debug", "Paste compiler output and get a compile-ready EA replacement plus fix notes."],
-  ["Compile", "Run MetaEditor when configured, or show an honest static pre-check."],
-  ["Package", "Save projects, download EA drafts, and keep a technical audit trail."],
+  ["Generate", "Turn a plain strategy brief into a complete MQL draft with risk controls."],
+  ["Debug", "Paste compiler output and get a fixed EA replacement plus clear fix notes."],
+  ["Compile", "Use MetaEditor when configured, or show an honest static pre-check."],
+  ["Package", "Save projects, download MQL outputs, and keep a technical audit trail."],
 ];
 
 const plans = [
@@ -105,15 +105,15 @@ const plans = [
     name: "Starter",
     key: "starter",
     price: "$29/mo",
-    caption: "For solo traders building first drafts.",
-    features: ["30 generations", "20 debugs", "Downloads", "Project history"],
+    caption: "For solo traders building first prototypes.",
+    features: ["30 generations", "20 debugs", "20 downloads", "Project history"],
   },
   {
     name: "Pro",
     key: "pro",
     price: "$79/mo",
-    caption: "For active EA builders.",
-    features: ["150 generations", "Optimizer", "Report analyzer", "Priority queue"],
+    caption: "Best fit for active EA builders.",
+    features: ["150 generations", "150 debugs", "Optimizer", "Report analyzer"],
     highlight: true,
   },
   {
@@ -121,8 +121,20 @@ const plans = [
     key: "studio",
     price: "$199/mo",
     caption: "For trading labs and agencies.",
-    features: ["Team workflow", "Advanced QA", "White-label reports", "API access"],
+    features: ["500 generations", "Team workflow", "Advanced QA", "API access"],
   },
+];
+
+const conversionProof = [
+  ["First value", "Generate or debug an EA before paying."],
+  ["Upgrade trigger", "Pay when quota, downloads, or optimizer depth becomes the bottleneck."],
+  ["Risk posture", "No martingale promotion, no profit promises, no hidden model name."],
+];
+
+const workflowSteps = [
+  ["1", "Describe the EA", "Market, platform, prop preset, risk cap, entry style, and exit rules."],
+  ["2", "Generate or debug", "Create MQL, fix compiler errors, and inspect risk/readiness scores."],
+  ["3", "Compile and package", "Run the compiler worker when configured, save projects, and download outputs."],
 ];
 
 function getGuestId() {
@@ -152,6 +164,10 @@ function toneClasses(tone: Toast["tone"]) {
   if (tone === "error") return "border-rose-400/40 bg-rose-400/10 text-rose-100";
   if (tone === "warning") return "border-amber-400/40 bg-amber-400/10 text-amber-100";
   return "border-cyan-400/40 bg-cyan-400/10 text-cyan-100";
+}
+
+function looksLikeEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
 function BrandMark() {
@@ -390,19 +406,21 @@ export default function Home() {
     }
   }
 
-  async function refreshAccount() {
+  async function refreshAccount(showToast = true) {
     try {
       const response = await fetch("/api/subscription/status");
       const data = await response.json();
       setAccount(data);
       if (data.user?.email) setEmail(data.user.email);
-      notify({
-        tone: data.status === "premium" ? "success" : "info",
-        title: "Account checked",
-        body: `${data.authenticated ? "Signed in" : "Guest"} | ${String(data.plan || "free").toUpperCase()} plan. Storage ${data.storage || "checking"}.`,
-      });
+      if (showToast) {
+        notify({
+          tone: data.status === "premium" ? "success" : "info",
+          title: "Account checked",
+          body: `${data.authenticated ? "Signed in" : "Guest"} | ${String(data.plan || "free").toUpperCase()} plan. Storage ${data.storage || "checking"}.`,
+        });
+      }
     } catch {
-      notify({ tone: "error", title: "Account check failed", body: "Could not read subscription state." });
+      if (showToast) notify({ tone: "error", title: "Account check failed", body: "Could not read subscription state." });
     }
   }
 
@@ -425,7 +443,7 @@ export default function Home() {
         return;
       }
       setOwnerToken("");
-      await refreshAccount();
+      await refreshAccount(false);
       notify({ tone: "success", title: "Signed in", body: `Session attached to ${data.user?.email || email}.` });
     } catch {
       notify({ tone: "error", title: "Sign in failed", body: "Authentication request failed." });
@@ -496,8 +514,8 @@ export default function Home() {
   }
 
   async function checkout(planKey: string) {
-    if (planKey !== "free" && !account?.authenticated) {
-      notify({ tone: "warning", title: "Sign in first", body: "Paid plans need a signed-in account so PayPal can attach the subscription correctly." });
+    if (planKey !== "free" && !account?.authenticated && !looksLikeEmail(email)) {
+      notify({ tone: "warning", title: "Email required", body: "Enter your email in the account panel so PayPal can attach the subscription correctly." });
       document.getElementById("account")?.scrollIntoView({ behavior: "smooth" });
       return;
     }
@@ -507,13 +525,14 @@ export default function Home() {
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey, provider: "paypal" }),
+        body: JSON.stringify({ plan: planKey, provider: "paypal", email, ownerToken: ownerToken || undefined }),
       });
       const data = await response.json();
       if (!response.ok || data.error) {
         notify({ tone: "error", title: "Checkout blocked", body: data.message || data.error || "PayPal checkout could not be created." });
         return;
       }
+      if (data.sessionAttached) await refreshAccount(false).catch(() => undefined);
       if (data.url) {
         notify({ tone: "success", title: "PayPal ready", body: "Redirecting to PayPal approval." });
         window.location.href = data.url;
@@ -528,7 +547,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    refreshAccount();
+    refreshAccount(false);
     loadProjects(false);
     fetch("/api/analytics/event", {
       method: "POST",
@@ -585,41 +604,36 @@ export default function Home() {
       <section className="mx-auto grid w-full max-w-7xl gap-10 overflow-hidden px-5 pb-16 pt-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:overflow-visible">
         <div className="min-w-0 max-w-full overflow-hidden lg:overflow-visible">
           <div className="mb-6 inline-flex rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-medium text-emerald-200">
-            Commercial EA workflow for MT4/MT5 builders
+            AI EA Generator + Debugger for MT4/MT5 traders
           </div>
           <h1 className="max-w-[calc(100vw-2.5rem)] break-words text-4xl font-semibold leading-[1.03] tracking-normal text-white sm:max-w-4xl sm:text-6xl xl:text-7xl">
-            <span className="block">Build safer</span>
-            <span className="block">Expert Advisors</span>
-            <span className="block">with a risk desk</span>
-            <span className="block">built in.</span>
+            <span className="block">Generate, debug,</span>
+            <span className="block">risk-check, and</span>
+            <span className="block">download EA drafts</span>
+            <span className="block">from one console.</span>
           </h1>
           <p className="mt-6 max-w-[calc(100vw-2.5rem)] break-words text-lg leading-8 text-zinc-300 sm:max-w-2xl">
-            <span className="block">Generate MQL drafts, debug compiler errors,</span>
-            <span className="block">score prop-firm readiness, save projects,</span>
-            <span className="block">and move to PayPal checkout</span>
-            <span className="block">from one operator-grade console.</span>
+            <span className="block">Describe a strategy, get structured MQL, fix compiler errors,</span>
+            <span className="block">score risk/readiness, save projects, and upgrade only when</span>
+            <span className="block">your quota or workflow needs more capacity.</span>
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button
               onClick={() => document.getElementById("console")?.scrollIntoView({ behavior: "smooth" })}
               className="h-12 rounded-lg bg-emerald-300 px-6 text-base text-[#101112] hover:bg-emerald-200"
             >
-              Open console
+              Generate a free EA draft
             </Button>
             <Button
               variant="outline"
-              onClick={() => run("/api/trading/debug", { platform, code: debugCode, errors: debugErrors }, "Debug")}
+              onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
               className="h-12 rounded-lg border-zinc-700 bg-zinc-950 px-6 text-base text-white hover:bg-zinc-900"
             >
-              Test debugger
+              Compare plans
             </Button>
           </div>
           <div className="mt-8 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
-            {[
-              ["AI engine", "private backend"],
-              ["Plan", plan],
-              ["Risk mode", propMode ? "prop on" : "manual"],
-            ].map(([label, value]) => (
+            {conversionProof.map(([label, value]) => (
               <div key={label} className="rounded-lg border border-white/10 bg-white/[0.035] p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">{label}</p>
                 <p className="mt-2 text-sm font-semibold text-zinc-100">{value}</p>
@@ -637,6 +651,27 @@ export default function Home() {
               <p className="font-semibold text-white">{title}</p>
               <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-14">
+        <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Conversion workflow</p>
+            <h2 className="mt-2 text-3xl font-semibold">From idea to downloadable MQL in three steps.</h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-zinc-400">
+            Workfusion is built around the jobs MT4/MT5 builders actually repeat: generation, debugging, compiler checks, risk review, and project packaging.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {workflowSteps.map(([number, title, body]) => (
+            <article key={title} className="rounded-lg border border-white/10 bg-zinc-950 p-5">
+              <div className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-300 text-sm font-black text-[#101112]">{number}</div>
+              <h3 className="mt-5 text-xl font-semibold">{title}</h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
+            </article>
           ))}
         </div>
       </section>
@@ -828,8 +863,8 @@ export default function Home() {
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm font-semibold text-white">Sign in for freemium</p>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">Free users keep limited access. Paid PayPal plans require this account identity.</p>
+                    <p className="text-sm font-semibold text-white">Email for checkout</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">Use one email for free quota, project history, and PayPal premium activation.</p>
                     <input
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
@@ -844,7 +879,7 @@ export default function Home() {
                       className="mt-2 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-2 text-sm text-white outline-none focus:border-emerald-300"
                     />
                     <Button disabled={!!activeAction} onClick={signIn} className="mt-3 w-full rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
-                      Sign in
+                      Attach email
                     </Button>
                   </div>
                 )}
@@ -858,7 +893,7 @@ export default function Home() {
                 ))}
               </div>
               <div className="mt-4 grid gap-2">
-                <Button disabled={!!activeAction} onClick={refreshAccount} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
+                <Button disabled={!!activeAction} onClick={() => refreshAccount()} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
                   Refresh account
                 </Button>
                 <Button disabled={!!activeAction} onClick={saveCurrentProject} variant="outline" className="rounded-lg border-emerald-400/40 bg-emerald-400/10 text-emerald-100 hover:bg-emerald-400/20">
@@ -902,9 +937,21 @@ export default function Home() {
           <div className="mb-7 flex flex-col justify-between gap-3 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-700">Pricing</p>
-              <h2 className="mt-2 text-3xl font-semibold">Direct PayPal checkout for EA builders.</h2>
+              <h2 className="mt-2 text-3xl font-semibold">Upgrade when iteration volume becomes the blocker.</h2>
             </div>
-            <a href="/pricing" className="text-sm font-semibold text-emerald-800">Open full pricing page</a>
+            <a href="/pricing" className="text-sm font-semibold text-emerald-800">Open full comparison and FAQ</a>
+          </div>
+          <div className="mb-5 grid gap-3 md:grid-cols-3">
+            {[
+              ["Free first", "Generate or debug before paying."],
+              ["Pro default", "Best balance of generations, debugs, optimizer, and reports."],
+              ["Clear risk line", "Software assistance only. No trading result guarantee."],
+            ].map(([title, body]) => (
+              <div key={title} className="rounded-lg border border-[#c9d5cf] bg-white p-4">
+                <p className="font-semibold">{title}</p>
+                <p className="mt-1 text-sm leading-6 text-zinc-600">{body}</p>
+              </div>
+            ))}
           </div>
           <div className="grid gap-4 md:grid-cols-4">
             {plans.map((item) => (
@@ -924,7 +971,7 @@ export default function Home() {
                   </button>
                 ) : (
                   <button onClick={() => checkout(item.key)} className="mt-5 w-full rounded-lg bg-[#101112] px-4 py-2 text-sm font-semibold text-white">
-                    Start {item.name} with PayPal
+                    Start {item.name}
                   </button>
                 )}
               </article>
@@ -942,7 +989,7 @@ export default function Home() {
         <a href="#" className="rounded-md px-2 py-3 hover:bg-white/10">Home</a>
         <a href="#console" className="rounded-md px-2 py-3 hover:bg-white/10">Console</a>
         <a href="#pricing" className="rounded-md px-2 py-3 hover:bg-white/10">Pricing</a>
-        <button onClick={refreshAccount} className="rounded-md px-2 py-3 hover:bg-white/10">Account</button>
+        <button onClick={() => refreshAccount()} className="rounded-md px-2 py-3 hover:bg-white/10">Account</button>
       </nav>
     </main>
   );
