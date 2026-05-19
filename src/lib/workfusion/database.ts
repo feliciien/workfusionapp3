@@ -141,6 +141,48 @@ export async function ensureWorkfusionSchema() {
 
       create index if not exists wf_billing_events_provider_ref_idx
         on wf_billing_events(provider, provider_ref);
+
+      create table if not exists wf_marketing_leads (
+        id text primary key,
+        email text unique not null,
+        persona text,
+        source text,
+        consent boolean not null default false,
+        consent_text text,
+        status text not null default 'subscribed',
+        user_agent text,
+        metadata jsonb not null default '{}'::jsonb,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      );
+
+      create index if not exists wf_marketing_leads_created_idx
+        on wf_marketing_leads(created_at desc);
+
+      create table if not exists wf_support_messages (
+        id text primary key,
+        user_id text,
+        email text,
+        plan text,
+        category text,
+        severity text,
+        subject text,
+        message text not null,
+        page text,
+        user_agent text,
+        ai_summary text,
+        ai_category text,
+        ai_priority text,
+        ai_suggested_action text,
+        ai_owner_brief text,
+        status text not null default 'open',
+        metadata jsonb not null default '{}'::jsonb,
+        created_at timestamptz not null default now(),
+        updated_at timestamptz not null default now()
+      );
+
+      create index if not exists wf_support_messages_created_idx
+        on wf_support_messages(created_at desc);
     `);
         await client.query("commit");
       } catch (error) {

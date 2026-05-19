@@ -91,6 +91,7 @@ await check("home page renders commercial dashboard", async () => {
   assert(response.ok, `home status ${response.status}`);
   assert(html.includes("Workfusion Trading AI"), "missing brand");
   assert(html.includes("Real screenshots, not placeholder score cards."), "missing real screenshot section");
+  assert(html.includes("Support desk"), "missing support desk");
   assert(html.includes("@") === false || true, "html parsed");
   return "home ok";
 });
@@ -222,6 +223,52 @@ await check("free checkout returns active message", async () => {
   assert(data.plan === "free", "free plan mismatch");
   return "free ok";
 });
+
+await check("lead capture requires consent", async () => {
+  const { response, data } = await request("POST", "/api/leads", { body: { email: qaEmail, persona: "mq5_developer", consent: false } });
+  assert(response.status === 400, `expected 400 got ${response.status}`);
+  assert(data.error === "consent_required", "consent guard missing");
+  return "consent guarded";
+});
+
+await check("lead capture stores opt-in", async () => {
+  const { response, data } = await request("POST", "/api/leads", { body: { email: qaEmail, persona: "mq5_developer", consent: true } });
+  assert(response.ok, `lead capture ${response.status}`);
+  assert(data.ok === true, "lead not saved");
+  return data.storage;
+});
+
+await check("support endpoint stores AI triage ticket", async () => {
+  const { response, data } = await request("POST", "/api/support/messages", {
+    cookie: userCookie,
+    body: {
+      email: qaEmail,
+      category: "compiler_error",
+      subject: "QA compiler issue",
+      message: "The generated MQ5 code fails in MetaEditor with an undeclared identifier error during QA.",
+      page: "/qa",
+    },
+  });
+  assert(response.ok, `support ${response.status}: ${data?.message || data?.error || ""}`);
+  assert(data.ok === true && data.id, "support ticket id missing");
+  assert(data.support?.priority, "support AI priority missing");
+  return `${data.id} ${data.support.priority}`;
+});
+
+await check("support admin endpoint is protected", async () => {
+  const { response } = await request("GET", "/api/support/messages");
+  assert(response.status === 401, `expected 401 got ${response.status}`);
+  return "protected";
+});
+
+if (adminToken) {
+  await check("support admin endpoint returns tickets", async () => {
+    const { response, data } = await request("GET", "/api/support/messages?limit=10", { admin: true });
+    assert(response.ok, `support admin ${response.status}`);
+    assert(Array.isArray(data.messages), "support messages array missing");
+    return `${data.messages.length} tickets`;
+  });
+}
 
 await check("billing audit is owner protected", async () => {
   const { response } = await request("GET", "/api/billing/audit");

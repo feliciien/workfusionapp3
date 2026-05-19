@@ -390,6 +390,8 @@ export async function analyticsSnapshot() {
       (select count(*) from wf_subscriptions where status = 'active')::text as active_subscriptions,
       (select count(*) from wf_projects)::text as projects,
       (select count(*) from wf_usage_events)::text as usage_events,
+      (select count(*) from wf_marketing_leads)::text as marketing_leads,
+      (select count(*) from wf_support_messages)::text as support_messages,
       (select count(*) from wf_page_events)::text as page_events,
       (select count(distinct email) from (
         select email from wf_users

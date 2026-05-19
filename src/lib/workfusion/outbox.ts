@@ -37,3 +37,33 @@ export function queueActivationEmail(to: string, plan: string, provider: string)
   }
   return message;
 }
+
+export function queueSupportNotification(input: {
+  to?: string;
+  ticketId: string;
+  subject: string;
+  ownerBrief: string;
+  email?: string;
+}) {
+  const message: OutboxMessage = {
+    to: input.to || process.env.WORKFUSION_OWNER_EMAIL || "owner@workfusionapp.local",
+    subject: `Workfusion support: ${input.subject || input.ticketId}`,
+    body: [
+      `Ticket: ${input.ticketId}`,
+      input.email ? `From: ${input.email}` : "From: anonymous",
+      "",
+      input.ownerBrief,
+    ].join("\n"),
+    createdAt: new Date().toISOString(),
+    mode: process.env.SMTP_HOST ? "smtp_pending" : "outbox",
+  };
+  try {
+    ensureOutbox();
+    const store = JSON.parse(fs.readFileSync(outboxFile, "utf8")) as { messages: OutboxMessage[] };
+    store.messages.push(message);
+    fs.writeFileSync(outboxFile, JSON.stringify(store, null, 2));
+  } catch {
+    message.mode = "outbox";
+  }
+  return message;
+}

@@ -79,6 +79,11 @@ type Toast = {
   body: string;
 };
 
+type FormStatus = {
+  status: "idle" | "loading" | "success" | "error";
+  message: string;
+};
+
 const markets = ["Forex", "XAUUSD", "Indices", "Crypto"];
 const presets = ["50k", "100k", "200k"];
 const platforms = [
@@ -367,6 +372,15 @@ export default function Home() {
   const [ownerToken, setOwnerToken] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [supportEmail, setSupportEmail] = useState("");
+  const [supportCategory, setSupportCategory] = useState("bug");
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportStatus, setSupportStatus] = useState<FormStatus>({ status: "idle", message: "Send bugs, compiler errors, billing issues, or product feedback." });
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadPersona, setLeadPersona] = useState("mq5_developer");
+  const [leadConsent, setLeadConsent] = useState(false);
+  const [leadStatus, setLeadStatus] = useState<FormStatus>({ status: "idle", message: "Join only with explicit opt-in. No scraped list, no purchased database." });
 
   const payload = useMemo(() => ({ idea, market, preset, platform, propMode }), [idea, market, preset, platform, propMode]);
   const limits = result?.remaining || account?.limits || { generate: 3, optimize: 1, debrief: 1, debug: 1, download: 1 };
@@ -546,9 +560,72 @@ export default function Home() {
     }
   }
 
+  async function submitSupport() {
+    setSupportStatus({ status: "loading", message: "Analyzing and sending your support message." });
+    try {
+      const response = await fetch("/api/support/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          email: supportEmail || email,
+          category: supportCategory,
+          subject: supportSubject,
+          message: supportMessage,
+          page: typeof window !== "undefined" ? window.location.pathname : "/",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        const message = data.message || data.error || "Support message failed.";
+        setSupportStatus({ status: "error", message });
+        notify({ tone: "error", title: "Support failed", body: message });
+        return;
+      }
+      setSupportMessage("");
+      setSupportSubject("");
+      setSupportStatus({
+        status: "success",
+        message: `Ticket ${data.id} created. Priority: ${data.support?.priority || "normal"}.`,
+      });
+      notify({ tone: "success", title: "Support sent", body: data.support?.summary || "Message stored for review." });
+    } catch {
+      setSupportStatus({ status: "error", message: "Network request failed while sending support." });
+      notify({ tone: "error", title: "Support failed", body: "Network request failed." });
+    }
+  }
+
+  async function joinLeadList() {
+    setLeadStatus({ status: "loading", message: "Saving opt-in email." });
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          email: leadEmail,
+          persona: leadPersona,
+          source: "homepage_ea_builder_updates",
+          consent: leadConsent,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        const message = data.message || data.error || "Lead capture failed.";
+        setLeadStatus({ status: "error", message });
+        notify({ tone: "error", title: "Opt-in failed", body: message });
+        return;
+      }
+      setLeadStatus({ status: "success", message: data.message || "You are on the update list." });
+      notify({ tone: "success", title: "Opt-in saved", body: "Workfusion EA builder updates are enabled for this email." });
+    } catch {
+      setLeadStatus({ status: "error", message: "Network request failed while saving opt-in." });
+      notify({ tone: "error", title: "Opt-in failed", body: "Network request failed." });
+    }
+  }
+
   useEffect(() => {
     refreshAccount(false);
     loadProjects(false);
+    setSupportEmail((value) => value || email);
     fetch("/api/analytics/event", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
@@ -573,6 +650,7 @@ export default function Home() {
             <a href="#console" className="hover:text-white">Console</a>
             <a href="#shots" className="hover:text-white">Screenshots</a>
             <a href="#pricing" className="hover:text-white">Pricing</a>
+            <a href="#support" className="hover:text-white">Support</a>
             <a href="/legal" className="hover:text-white">Risk disclosure</a>
           </nav>
           <div className="hidden items-center gap-3 md:flex">
@@ -596,6 +674,7 @@ export default function Home() {
             <a onClick={() => setMobileMenuOpen(false)} href="#console" className="rounded-lg bg-white/[0.04] px-3 py-3">Console</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#shots" className="rounded-lg bg-white/[0.04] px-3 py-3">Screenshots</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#pricing" className="rounded-lg bg-white/[0.04] px-3 py-3">Pricing</a>
+            <a onClick={() => setMobileMenuOpen(false)} href="#support" className="rounded-lg bg-white/[0.04] px-3 py-3">Support</a>
             <a onClick={() => setMobileMenuOpen(false)} href="/legal" className="rounded-lg bg-white/[0.04] px-3 py-3">Risk disclosure</a>
           </nav>
         )}
@@ -980,6 +1059,113 @@ export default function Home() {
         </div>
       </section>
 
+      <section id="support" className="mx-auto max-w-7xl px-5 py-14">
+        <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Support desk</p>
+            <h2 className="mt-2 text-3xl font-semibold">Report bugs and join the EA builder list.</h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-zinc-400">
+            Support messages are summarized and classified with OpenAI, then stored for the owner to review and improve the product.
+          </p>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[1.08fr_0.92fr]">
+          <section className="rounded-lg border border-white/10 bg-zinc-950 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">Send a support message</p>
+                <p className="mt-1 text-sm text-zinc-500">Compiler errors, payment problems, broken output, missing features, or UX feedback.</p>
+              </div>
+              <span className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+                supportStatus.status === "success"
+                  ? "bg-emerald-300/10 text-emerald-200"
+                  : supportStatus.status === "error"
+                    ? "bg-rose-300/10 text-rose-200"
+                    : "bg-cyan-300/10 text-cyan-200"
+              }`}>
+                {supportStatus.status}
+              </span>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <input
+                value={supportEmail || email}
+                onChange={(event) => setSupportEmail(event.target.value)}
+                placeholder="email for reply"
+                className="rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300"
+              />
+              <select
+                value={supportCategory}
+                onChange={(event) => setSupportCategory(event.target.value)}
+                className="rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300"
+              >
+                <option value="bug">Bug</option>
+                <option value="compiler_error">Compiler error</option>
+                <option value="billing">Billing</option>
+                <option value="feature_request">Feature request</option>
+                <option value="feedback">Feedback</option>
+              </select>
+            </div>
+            <input
+              value={supportSubject}
+              onChange={(event) => setSupportSubject(event.target.value)}
+              placeholder="short subject"
+              className="mt-3 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-cyan-300"
+            />
+            <textarea
+              value={supportMessage}
+              onChange={(event) => setSupportMessage(event.target.value)}
+              placeholder="Describe what happened, what you expected, and paste compiler errors if relevant."
+              className="mt-3 min-h-36 w-full rounded-lg border border-white/10 bg-[#101112] p-3 text-sm leading-6 text-white outline-none focus:border-cyan-300"
+            />
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm leading-6 text-zinc-400">{supportStatus.message}</p>
+              <Button disabled={supportStatus.status === "loading"} onClick={submitSupport} className="rounded-lg bg-cyan-300 text-[#101112] hover:bg-cyan-200">
+                Send to support
+              </Button>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-white/10 bg-zinc-950 p-5">
+            <p className="text-sm font-semibold text-zinc-200">EA builder updates</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-400">
+              Build the first audience with opt-in emails from MT4/MT5 builders. Do not import scraped or purchased lists.
+            </p>
+            <input
+              value={leadEmail}
+              onChange={(event) => setLeadEmail(event.target.value)}
+              placeholder="developer@example.com"
+              className="mt-5 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
+            />
+            <select
+              value={leadPersona}
+              onChange={(event) => setLeadPersona(event.target.value)}
+              className="mt-3 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
+            >
+              <option value="mq5_developer">MQL5 / EA developer</option>
+              <option value="mt4_developer">MQL4 / MT4 developer</option>
+              <option value="prop_trader">Prop trader</option>
+              <option value="agency_or_educator">Agency / educator</option>
+            </select>
+            <label className="mt-4 flex items-start gap-3 text-sm leading-6 text-zinc-300">
+              <input
+                type="checkbox"
+                checked={leadConsent}
+                onChange={(event) => setLeadConsent(event.target.checked)}
+                className="mt-1"
+              />
+              I agree to receive Workfusion EA builder updates and understand I can unsubscribe later.
+            </label>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm leading-6 text-zinc-400">{leadStatus.message}</p>
+              <Button disabled={leadStatus.status === "loading"} onClick={joinLeadList} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
+                Join list
+              </Button>
+            </div>
+          </section>
+        </div>
+      </section>
+
       <footer className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-zinc-500 md:flex-row md:items-center md:justify-between">
         <p>Copyright {new Date().getFullYear()} Workfusionapp, Inc. All rights reserved.</p>
         <p>Software tool only. No investment advice. No profit guarantee.</p>
@@ -989,7 +1175,7 @@ export default function Home() {
         <a href="#" className="rounded-md px-2 py-3 hover:bg-white/10">Home</a>
         <a href="#console" className="rounded-md px-2 py-3 hover:bg-white/10">Console</a>
         <a href="#pricing" className="rounded-md px-2 py-3 hover:bg-white/10">Pricing</a>
-        <button onClick={() => refreshAccount()} className="rounded-md px-2 py-3 hover:bg-white/10">Account</button>
+        <a href="#support" className="rounded-md px-2 py-3 hover:bg-white/10">Support</a>
       </nav>
     </main>
   );

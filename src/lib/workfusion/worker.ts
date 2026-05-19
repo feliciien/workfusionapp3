@@ -5,7 +5,7 @@ export function compileCheck(code: string): WorkerCheck {
   const source = code || "";
   let score = 100;
 
-  if (source.trim().length < 4000) {
+  if (source.trim().length < 5000) {
     diagnostics.push("Code is too short to be a complete EA.");
     score -= 45;
   }
