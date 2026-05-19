@@ -1,4 +1,5 @@
 import { databaseConfigured, ensureWorkfusionSchema, query } from "./database";
+import { resourceGuideSlugs } from "./resource-guides";
 
 export type GrowthLead = {
   id: string;
@@ -213,8 +214,8 @@ function buildTasks(counts: Record<string, number>) {
     },
     {
       priority: "P1",
-      title: "Publish one MQL error post",
-      detail: "Use a real compiler error, show the fix, and link to the matching SEO page.",
+      title: "Promote one resource guide",
+      detail: `${resourceGuideSlugs.length} SEO guides are live; share one helpful answer and link only when relevant.`,
     },
     {
       priority: "P2",
@@ -244,6 +245,12 @@ function buildOutreachDrafts() {
       title: "Helpful debug angle",
       body:
         "I built a small assistant for EA builders: generate MQL drafts, debug MetaEditor errors, and run a readiness check before manual backtesting. Looking for feedback from serious MQL4/MQL5 developers.",
+    },
+    {
+      channel: "Forum answer",
+      title: "No-spam support answer",
+      body:
+        "If someone asks about a specific compiler error, answer the fix first. Add one relevant Workfusion guide only when it helps them continue the debugging path.",
     },
   ];
 }

@@ -94,6 +94,35 @@ const seoPages = [
   ["/mql5-code-review", "MQL5 Code Review"],
 ];
 
+const resourcePages = [
+  "/resources/fix-undeclared-identifier-mql5-ea",
+  "/resources/fix-invalid-stops-mt5-ea",
+  "/resources/mql5-ctrade-include-trade-object-setup",
+  "/resources/mql5-oninit-ontick-ea-skeleton",
+  "/resources/ea-compiles-but-does-not-trade-mt5",
+  "/resources/turn-strategy-idea-into-mt5-ea-spec",
+  "/resources/moving-average-crossover-ea-risk-guards",
+  "/resources/breakout-ea-session-filter-mt5",
+  "/resources/ea-input-parameters-checklist",
+  "/resources/prepare-ea-for-strategy-tester",
+  "/resources/fix-ordersend-error-130-mql4",
+  "/resources/mql4-to-mql5-migration-checklist",
+  "/resources/mt4-ea-magic-number-order-management",
+  "/resources/mql4-compile-errors-cheat-sheet",
+  "/resources/debug-ea-opens-too-many-trades",
+  "/resources/daily-drawdown-guard-ea",
+  "/resources/prop-firm-spread-filter-ea",
+  "/resources/max-open-trades-cooldown-ea",
+  "/resources/fixed-risk-lot-sizing-mql5-ea",
+  "/resources/prop-firm-ea-readiness-checklist",
+  "/resources/expert-advisor-audit-trail",
+  "/resources/expert-advisor-state-machine-design",
+  "/resources/mql5-logging-diagnostics-ea",
+  "/resources/backtest-failure-triage-mt5-ea",
+  "/resources/expert-advisor-handoff-checklist",
+  "/resources/mql5-code-review-before-backtesting",
+];
+
 await check("home page renders commercial dashboard", async () => {
   const response = await fetch(`${baseUrl}/`);
   const html = await response.text();
@@ -134,11 +163,29 @@ await check("SEO landing pages render", async () => {
   return `${seoPages.length} SEO pages`;
 });
 
+await check("resource hub and guides render", async () => {
+  const hub = await fetch(`${baseUrl}/resources`);
+  const hubHtml = await hub.text();
+  assert(hub.ok, `resources status ${hub.status}`);
+  assert(hubHtml.includes("Practical MT4/MT5 guides"), "resources hub missing hero");
+  assert(hubHtml.includes("26 guides"), "resources hub missing guide count");
+  for (const path of resourcePages) {
+    const response = await fetch(`${baseUrl}${path}`);
+    const html = await response.text();
+    assert(response.ok, `${path} status ${response.status}`);
+    assert(html.includes("Implementation checklist"), `${path} missing checklist`);
+    assert(html.includes("Join the EA builder list"), `${path} missing opt-in form`);
+  }
+  return `${resourcePages.length} resource guides`;
+});
+
 await check("sitemap and robots expose SEO pages", async () => {
   const sitemap = await fetch(`${baseUrl}/sitemap.xml`);
   const sitemapText = await sitemap.text();
   assert(sitemap.ok, `sitemap status ${sitemap.status}`);
   for (const [path] of seoPages) assert(sitemapText.includes(path), `sitemap missing ${path}`);
+  assert(sitemapText.includes("/resources"), "sitemap missing resources hub");
+  for (const path of resourcePages) assert(sitemapText.includes(path), `sitemap missing ${path}`);
   const robots = await fetch(`${baseUrl}/robots.txt`);
   const robotsText = await robots.text();
   assert(robots.ok, `robots status ${robots.status}`);

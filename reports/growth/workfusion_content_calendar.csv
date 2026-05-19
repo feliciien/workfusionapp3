@@ -1,0 +1,31 @@
+week,channel,asset,title,primary_keyword,cta,notes
+1,Website,Resource guide,Fix undeclared identifier in an MQL5 EA,mql5 undeclared identifier,Open MQL5 Compiler Fixer,Already live at /resources/fix-undeclared-identifier-mql5-ea
+1,LinkedIn,Post,Why most EA generator outputs fail MetaEditor,mt5 ea generator,Try the console,Show before/after compiler workflow
+1,MQL community,Helpful answer,How to read the first MetaEditor error,mql5 compiler error,Use the guide only if relevant,Answer fix first before linking
+1,YouTube comment,Helpful comment,Use a compile and risk checklist before Strategy Tester,mql5 code review,Link to resources hub only when relevant,No copy-paste spam
+2,Website,Resource guide,Fix invalid stops in an MT5 EA,invalid stops mt5 ea,Open Risk Checker,Already live at /resources/fix-invalid-stops-mt5-ea
+2,LinkedIn,Post,EA compiles but does not trade: permission versus filters,ea compiles but does not trade mt5,Read guide,Use diagnostic checklist
+2,Reddit,Educational post,Checklist before running a 5 year backtest,mt5 strategy tester ea,Open resources,Post as educational content only
+2,Email opt-in,Newsletter,5 EA bugs that waste Strategy Tester time,mql5 ea debugging,Reply with compiler error,Only to opt-in list
+3,Website,Resource guide,Moving average crossover EA with risk guards,moving average crossover ea mt5,Generate EA draft,Already live at /resources/moving-average-crossover-ea-risk-guards
+3,LinkedIn,Post,Why a crossover EA needs duplicate-entry protection,ea opens too many trades,Run debugger,Show duplicate signal issue
+3,MQL community,Helpful answer,Magic number filters and duplicate trades,mt4 magic number ea,Read guide only if relevant,Answer code issue first
+3,Short video script,Demo,Generate EA, compile, risk-check, download,ai ea generator,Try free quota,30-60 second demo
+4,Website,Resource guide,Daily drawdown guard for an EA,daily drawdown guard ea,Open Prop Firm Risk Checker,Already live at /resources/daily-drawdown-guard-ea
+4,LinkedIn,Post,Prop-style EAs need software gates before signals,prop firm ea risk checker,Read checklist,No profit claims
+4,Reddit,Educational post,Spread filter that does not kill trade frequency,spread filter ea,Read spread guide,Use concrete example
+4,Email opt-in,Newsletter,How to package an EA project for review,expert advisor handoff checklist,Download MQL output,Only to opt-in list
+5,Website,Resource guide,MQL4 to MQL5 migration checklist,mql4 to mql5 ea migration,Open code review,Already live at /resources/mql4-to-mql5-migration-checklist
+5,LinkedIn,Post,MQL4 migration is not just renaming functions,mql4 to mql5,Read checklist,Developer-focused
+5,MQL community,Helpful answer,OrderSend error 130 and invalid stops,ordersend error 130,Read guide only if relevant,Answer fix first
+5,Short video script,Demo,Debug a broken MT4 EA draft,mt4 ea debugger,Try debugger,No promise of perfect output
+6,Website,Resource guide,MT5 EA backtest failure triage,mt5 ea backtest failure,Open code review,Already live at /resources/backtest-failure-triage-mt5-ea
+6,LinkedIn,Post,A two-trade 5Y backtest is not evidence,ea backtest trade count,Read triage guide,Position as research discipline
+6,Reddit,Educational post,What to log when an EA blocks a trade,mql5 logging diagnostics ea,Read logging guide,Practical checklist
+6,Email opt-in,Newsletter,EA readiness checklist before prop testing,prop firm ea readiness,Run risk checker,Only to opt-in list
+7,Website,Comparison page draft,AI EA generator versus code snippet prompt,ai ea generator,Try Workfusion,Future page topic
+7,LinkedIn,Post,Full EA draft beats snippet generation for testing,ai mql5 generator,Open console,Show lifecycle and risk gates
+7,MQL community,Helpful answer,How to package EA code, set file, and report,expert advisor handoff,Read guide only if useful,Collaboration angle
+8,Website,Comparison page draft,MetaEditor compiler worker workflow,mql5 compiler online,Join list,Future page topic
+8,LinkedIn,Post,Compile worker is useful only if outputs are still reviewable,mql5 compiler,Open compiler fixer,Honest limitations
+8,Email opt-in,Newsletter,Best Workfusion user examples from the month,mql5 ea debugging,Reply with EA issue,Use opt-in only
