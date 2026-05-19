@@ -52,6 +52,29 @@ WORKFUSION_METAEDITOR_TIMEOUT_MS=180000
 
 The root folder must contain `MetaEditor64.exe`. When configured, the API writes the submitted `.mq5` into `MQL5/Experts/WorkfusionCompilerJobs/`, calls MetaEditor, and reports whether an `.ex5` artifact was produced. Vercel deployments normally run in `static_precheck` mode because MetaEditor/Wine is not available there.
 
+## PayPal Sandbox Test
+
+Use sandbox credentials only:
+
+```text
+PAYPAL_API_BASE=https://api-m.sandbox.paypal.com
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID=...
+NEXT_PUBLIC_PAYPAL_YEARLY_PLAN_ID=...
+PAYPAL_WEBHOOK_ID=...
+```
+
+Then run:
+
+```bash
+npm run paypal:sandbox -- preflight
+npm run paypal:sandbox -- create sandbox-buyer@example.com starter
+npm run paypal:sandbox -- verify I-SUBSCRIPTIONID
+```
+
+Premium activation is completed by `/api/billing/paypal/activate` after PayPal redirects back with `subscription_id`. Renewals and payment receipt evidence are handled by `/api/billing/paypal/webhook`, which verifies PayPal webhook signatures and records `PAYMENT.SALE.COMPLETED` events.
+
 ## API Routes
 
 - `POST /api/trading/generate`

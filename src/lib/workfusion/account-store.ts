@@ -7,6 +7,8 @@ import type { WorkfusionPlan } from "./types";
 export type PersistentSubscription = SubscriptionRecord & {
   id?: string;
   userId?: string;
+  currentPeriodEnd?: string;
+  metadata?: Record<string, unknown>;
 };
 
 function secret() {
@@ -58,11 +60,13 @@ export async function getPersistentSubscription(email: string): Promise<Persiste
         status: SubscriptionRecord["status"];
         provider: SubscriptionRecord["provider"];
         provider_ref: string | null;
+        current_period_end: Date | null;
+        metadata: Record<string, unknown> | null;
         activated_at: Date;
         updated_at: Date;
       }>(
         `
-        select id, user_id, email, plan, status, provider, provider_ref, activated_at, updated_at
+        select id, user_id, email, plan, status, provider, provider_ref, current_period_end, metadata, activated_at, updated_at
         from wf_subscriptions
         where lower(email) = lower($1)
         order by updated_at desc
@@ -80,6 +84,8 @@ export async function getPersistentSubscription(email: string): Promise<Persiste
           status: row.status,
           provider: row.provider,
           providerRef: row.provider_ref || undefined,
+          currentPeriodEnd: row.current_period_end?.toISOString(),
+          metadata: row.metadata || undefined,
           activatedAt: row.activated_at.toISOString(),
           updatedAt: row.updated_at.toISOString(),
         };
@@ -97,6 +103,8 @@ export async function upsertPersistentSubscription(input: {
   status?: SubscriptionRecord["status"];
   provider: SubscriptionRecord["provider"];
   providerRef?: string;
+  currentPeriodEnd?: string;
+  metadata?: Record<string, unknown>;
 }) {
   const normalized = input.email.toLowerCase();
   const user = await upsertUser({ email: normalized, plan: input.plan });
@@ -107,6 +115,8 @@ export async function upsertPersistentSubscription(input: {
     status: input.status || "active",
     provider: input.provider,
     providerRef: input.providerRef,
+    currentPeriodEnd: input.currentPeriodEnd,
+    metadata: input.metadata,
     activatedAt: now,
     updatedAt: now,
     userId: user.id,
@@ -117,8 +127,8 @@ export async function upsertPersistentSubscription(input: {
       const id = input.providerRef ? `${input.provider}_${input.providerRef}` : `manual_${stableUserId(normalized)}`;
       await query(
         `
-        insert into wf_subscriptions (id, user_id, email, plan, status, provider, provider_ref, activated_at, updated_at)
-        values ($1, $2, $3, $4, $5, $6, $7, now(), now())
+        insert into wf_subscriptions (id, user_id, email, plan, status, provider, provider_ref, current_period_end, metadata, activated_at, updated_at)
+        values ($1, $2, $3, $4, $5, $6, $7, $8::timestamptz, $9::jsonb, now(), now())
         on conflict (id) do update set
           user_id = excluded.user_id,
           email = excluded.email,
@@ -126,9 +136,21 @@ export async function upsertPersistentSubscription(input: {
           status = excluded.status,
           provider = excluded.provider,
           provider_ref = excluded.provider_ref,
+          current_period_end = excluded.current_period_end,
+          metadata = excluded.metadata,
           updated_at = now()
         `,
-        [id, user.id, normalized, input.plan, record.status, input.provider, input.providerRef || null],
+        [
+          id,
+          user.id,
+          normalized,
+          input.plan,
+          record.status,
+          input.provider,
+          input.providerRef || null,
+          input.currentPeriodEnd || null,
+          JSON.stringify(input.metadata || {}),
+        ],
       );
       return { ...record, id, storage: "postgres" as const };
     } catch {
@@ -137,6 +159,97 @@ export async function upsertPersistentSubscription(input: {
   }
 
   return { ...record, storage: "local-json" as const };
+}
+
+export async function getPersistentSubscriptionByProviderRef(provider: string, providerRef: string): Promise<PersistentSubscription | null> {
+  if (!databaseConfigured() || !providerRef) return null;
+  try {
+    const result = await query<{
+      id: string;
+      user_id: string | null;
+      email: string;
+      plan: WorkfusionPlan;
+      status: SubscriptionRecord["status"];
+      provider: SubscriptionRecord["provider"];
+      provider_ref: string | null;
+      current_period_end: Date | null;
+      metadata: Record<string, unknown> | null;
+      activated_at: Date;
+      updated_at: Date;
+    }>(
+      `
+      select id, user_id, email, plan, status, provider, provider_ref, current_period_end, metadata, activated_at, updated_at
+      from wf_subscriptions
+      where provider = $1 and provider_ref = $2
+      order by updated_at desc
+      limit 1
+      `,
+      [provider, providerRef],
+    );
+    const row = result?.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      userId: row.user_id || undefined,
+      email: row.email,
+      plan: validPlan(row.plan),
+      status: row.status,
+      provider: row.provider,
+      providerRef: row.provider_ref || undefined,
+      currentPeriodEnd: row.current_period_end?.toISOString(),
+      metadata: row.metadata || undefined,
+      activatedAt: row.activated_at.toISOString(),
+      updatedAt: row.updated_at.toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function recordBillingEvent(input: {
+  provider: string;
+  eventId?: string;
+  eventType: string;
+  providerRef?: string;
+  email?: string;
+  plan?: WorkfusionPlan;
+  amount?: number;
+  currency?: string;
+  status?: string;
+  raw?: Record<string, unknown>;
+}) {
+  if (!databaseConfigured()) return false;
+  try {
+    await query(
+      `
+      insert into wf_billing_events (provider, event_id, event_type, provider_ref, email, plan, amount, currency, status, raw)
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+      on conflict (event_id) do update set
+        provider_ref = excluded.provider_ref,
+        email = excluded.email,
+        plan = excluded.plan,
+        amount = excluded.amount,
+        currency = excluded.currency,
+        status = excluded.status,
+        raw = excluded.raw
+      `,
+      [
+        input.provider,
+        input.eventId || null,
+        input.eventType,
+        input.providerRef || null,
+        input.email || null,
+        input.plan || null,
+        typeof input.amount === "number" && Number.isFinite(input.amount) ? input.amount : null,
+        input.currency || null,
+        input.status || null,
+        JSON.stringify(input.raw || {}),
+      ],
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getPersistentAccess(session: WorkfusionSession) {

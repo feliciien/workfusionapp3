@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { upsertPersistentSubscription } from "@/lib/workfusion/account-store";
+import { recordBillingEvent, upsertPersistentSubscription } from "@/lib/workfusion/account-store";
 import { createSessionCookie, getSession, normalizeEmail } from "@/lib/workfusion/session";
 import { getPaypalSubscription } from "@/lib/workfusion/paypal";
 import { queueActivationEmail } from "@/lib/workfusion/outbox";
@@ -44,6 +44,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       provider: "paypal",
       providerRef: subscriptionId,
       status: "active",
+      currentPeriodEnd: paypal.billing_info?.next_billing_time,
+      metadata: {
+        paypalStatus: paypal.status,
+        paypalPlanId: paypal.plan_id,
+      },
+    });
+    await recordBillingEvent({
+      provider: "paypal",
+      eventId: `manual_activate_${subscriptionId}`,
+      eventType: "WORKFUSION.PAYPAL.ACTIVATED",
+      providerRef: subscriptionId,
+      email,
+      plan,
+      status: "active",
+      raw: paypal,
     });
     const ownerEmail = normalizeEmail(process.env.WORKFUSION_OWNER_EMAIL);
     const role = ownerEmail && normalizeEmail(email) === ownerEmail ? "owner" : "user";

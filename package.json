@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "qa:prod": "node scripts/qa_workfusion.mjs https://www.workfusionapp.com"
+    "qa:prod": "node scripts/qa_workfusion.mjs https://www.workfusionapp.com",
+    "paypal:sandbox": "node scripts/paypal_sandbox_check.mjs"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.10",

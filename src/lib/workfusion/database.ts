@@ -60,13 +60,24 @@ export async function ensureWorkfusionSchema() {
         status text not null,
         provider text not null,
         provider_ref text,
+        current_period_end timestamptz,
+        metadata jsonb not null default '{}'::jsonb,
         activated_at timestamptz not null default now(),
         updated_at timestamptz not null default now()
       );
 
+      alter table wf_subscriptions
+        add column if not exists current_period_end timestamptz;
+
+      alter table wf_subscriptions
+        add column if not exists metadata jsonb not null default '{}'::jsonb;
+
       create unique index if not exists wf_subscriptions_email_active_idx
         on wf_subscriptions(email)
         where status in ('active', 'trialing', 'past_due');
+
+      create index if not exists wf_subscriptions_provider_ref_idx
+        on wf_subscriptions(provider, provider_ref);
 
       create table if not exists wf_projects (
         id text primary key,
@@ -109,6 +120,27 @@ export async function ensureWorkfusionSchema() {
         user_agent text,
         created_at timestamptz not null default now()
       );
+
+      create table if not exists wf_billing_events (
+        id bigserial primary key,
+        provider text not null,
+        event_id text unique,
+        event_type text not null,
+        provider_ref text,
+        email text,
+        plan text,
+        amount numeric,
+        currency text,
+        status text,
+        raw jsonb not null default '{}'::jsonb,
+        created_at timestamptz not null default now()
+      );
+
+      create index if not exists wf_billing_events_created_idx
+        on wf_billing_events(created_at desc);
+
+      create index if not exists wf_billing_events_provider_ref_idx
+        on wf_billing_events(provider, provider_ref);
     `);
         await client.query("commit");
       } catch (error) {

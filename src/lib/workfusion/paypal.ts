@@ -1,4 +1,4 @@
-function paypalBase() {
+export function paypalBase() {
   return (process.env.PAYPAL_API_BASE || "https://api-m.paypal.com").trim().replace(/\/$/, "");
 }
 
@@ -24,6 +24,13 @@ export function paypalPlanId(plan: string) {
   if (plan === "starter") return process.env.NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID;
   if (plan === "pro") return process.env.NEXT_PUBLIC_PAYPAL_YEARLY_PLAN_ID || process.env.NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID;
   return process.env.NEXT_PUBLIC_PAYPAL_YEARLY_PLAN_ID || process.env.NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID;
+}
+
+export function workfusionPlanFromPaypalPlanId(planId: unknown) {
+  const value = String(planId || "");
+  if (value && value === process.env.NEXT_PUBLIC_PAYPAL_MONTHLY_PLAN_ID) return "starter";
+  if (value && value === process.env.NEXT_PUBLIC_PAYPAL_YEARLY_PLAN_ID) return "pro";
+  return null;
 }
 
 export async function createPaypalSubscription(input: {
@@ -75,4 +82,37 @@ export async function getPaypalSubscription(subscriptionId: string) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.message || data.name || "PayPal subscription lookup failed");
   return data;
+}
+
+export async function verifyPaypalWebhookSignature(input: {
+  transmissionId: string;
+  transmissionTime: string;
+  certUrl: string;
+  authAlgo: string;
+  transmissionSig: string;
+  webhookEvent: Record<string, unknown>;
+}) {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID;
+  if (!webhookId) throw new Error("PAYPAL_WEBHOOK_ID missing");
+
+  const token = await getPaypalAccessToken();
+  const response = await fetch(`${paypalBase()}/v1/notifications/verify-webhook-signature`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      auth_algo: input.authAlgo,
+      cert_url: input.certUrl,
+      transmission_id: input.transmissionId,
+      transmission_sig: input.transmissionSig,
+      transmission_time: input.transmissionTime,
+      webhook_id: webhookId,
+      webhook_event: input.webhookEvent,
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.message || data.name || "PayPal webhook signature verification failed");
+  return data.verification_status === "SUCCESS";
 }
