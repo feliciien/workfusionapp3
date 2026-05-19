@@ -8,10 +8,10 @@ import { compileCheck } from "./worker";
 import type { WorkerCheck } from "./types";
 
 export type MqlCompileResult = WorkerCheck & {
-  worker: "metaeditor-mql-compiler" | "static-mql-precheck";
+  worker: "remote-mql-compiler" | "metaeditor-mql-compiler" | "static-mql-precheck";
   compiled: boolean;
   compiler: {
-    mode: "metaeditor" | "static_precheck";
+    mode: "remote_worker" | "metaeditor" | "static_precheck";
     available: boolean;
     message: string;
     returnCode?: number | null;
@@ -44,9 +44,12 @@ export async function compileMql(input: CompileInput): Promise<MqlCompileResult>
     return staticOnly(staticCheck, "Real MetaEditor compilation is currently configured for MT5 .mq5 files only.");
   }
 
+  const remote = await remoteWorkerCompile(input, staticCheck);
+  if (remote) return remote;
+
   const config = compilerConfig();
   if (!config) {
-    return staticOnly(staticCheck, "MetaEditor is not configured on this server. Set WORKFUSION_METAEDITOR_ROOT to enable real .mq5 compilation.");
+    return staticOnly(staticCheck, "No compiler is configured on this server. Set WORKFUSION_COMPILER_WORKER_URL for a Mac/VPS worker or WORKFUSION_METAEDITOR_ROOT for local MetaEditor compilation.");
   }
 
   if (!existsSync(config.metaeditor)) {
@@ -67,6 +70,98 @@ export async function compileMql(input: CompileInput): Promise<MqlCompileResult>
   }
 
   return runMetaEditorCompile({ code, filename: input.filename, staticCheck, config });
+}
+
+async function remoteWorkerCompile(input: CompileInput, staticCheck: WorkerCheck): Promise<MqlCompileResult | null> {
+  const workerUrl = (process.env.WORKFUSION_COMPILER_WORKER_URL || "").trim().replace(/\/$/u, "");
+  if (!workerUrl) return null;
+  if (staticCheck.status === "fail") {
+    return {
+      ...staticCheck,
+      worker: "static-mql-precheck",
+      compiled: false,
+      compiler: {
+        mode: "static_precheck",
+        available: true,
+        message: "Static pre-check failed, so remote compiler execution was skipped.",
+      },
+    };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Number(process.env.WORKFUSION_COMPILER_WORKER_TIMEOUT_MS || 180_000));
+    try {
+      const response = await fetch(`${workerUrl}/compile`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.WORKFUSION_COMPILER_WORKER_TOKEN
+            ? { "x-workfusion-compiler-token": process.env.WORKFUSION_COMPILER_WORKER_TOKEN }
+            : {}),
+        },
+        body: JSON.stringify(input),
+        signal: controller.signal,
+      });
+      const data = await response.json().catch(() => null) as Partial<MqlCompileResult> | null;
+      if (!response.ok || !data) {
+        return {
+          ...staticCheck,
+          status: "fail",
+          score: Math.min(staticCheck.score, 55),
+          diagnostics: [...staticCheck.diagnostics, `Remote compiler failed with HTTP ${response.status}.`],
+          worker: "remote-mql-compiler",
+          compiled: false,
+          compiler: {
+            mode: "remote_worker",
+            available: true,
+            message: "Remote compiler worker rejected the compile request.",
+          },
+        };
+      }
+      return normalizeRemoteResult(data, staticCheck);
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (error) {
+    return {
+      ...staticCheck,
+      status: "fail",
+      score: Math.min(staticCheck.score, 55),
+      diagnostics: [
+        ...staticCheck.diagnostics,
+        error instanceof Error ? `Remote compiler unavailable: ${error.message}` : "Remote compiler unavailable.",
+      ],
+      worker: "remote-mql-compiler",
+      compiled: false,
+      compiler: {
+        mode: "remote_worker",
+        available: false,
+        message: "Remote compiler worker is not reachable.",
+      },
+    };
+  }
+}
+
+function normalizeRemoteResult(data: Partial<MqlCompileResult>, staticCheck: WorkerCheck): MqlCompileResult {
+  const status = data.status === "pass" || data.status === "warning" || data.status === "fail" ? data.status : "fail";
+  return {
+    status,
+    score: typeof data.score === "number" ? data.score : staticCheck.score,
+    diagnostics: Array.isArray(data.diagnostics) ? data.diagnostics.map(String) : staticCheck.diagnostics,
+    worker: "remote-mql-compiler",
+    compiled: Boolean(data.compiled),
+    compiler: {
+      mode: "remote_worker",
+      available: data.compiler?.available !== false,
+      message: data.compiler?.message || "Remote compiler worker responded.",
+      returnCode: data.compiler?.returnCode,
+      sourceFile: data.compiler?.sourceFile,
+      artifactFile: data.compiler?.artifactFile,
+      logFile: data.compiler?.logFile,
+      logTail: data.compiler?.logTail,
+    },
+  };
 }
 
 function compilerConfig(): CompilerConfig | null {

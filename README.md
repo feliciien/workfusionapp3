@@ -45,12 +45,20 @@ npm run build
 `POST /api/workers/compile` always returns a static MQL pre-check. To make it run a real MetaEditor compile on a Mac/VPS with Wine and MT5 installed, set:
 
 ```text
+WORKFUSION_COMPILER_WORKER_URL=http://127.0.0.1:8787
+WORKFUSION_COMPILER_WORKER_TOKEN=change-this-long-token
 WORKFUSION_METAEDITOR_ROOT=/path/to/MetaTrader 5
 WORKFUSION_WINE_BIN=wine
 WORKFUSION_METAEDITOR_TIMEOUT_MS=180000
 ```
 
-The root folder must contain `MetaEditor64.exe`. When configured, the API writes the submitted `.mq5` into `MQL5/Experts/WorkfusionCompilerJobs/`, calls MetaEditor, and reports whether an `.ex5` artifact was produced. Vercel deployments normally run in `static_precheck` mode because MetaEditor/Wine is not available there.
+Start the Mac/VPS worker:
+
+```bash
+npm run compiler:worker
+```
+
+The worker root folder must contain `MetaEditor64.exe`. When configured, the API posts the submitted `.mq5` to the worker, the worker writes it into `MQL5/Experts/WorkfusionCompilerJobs/`, calls MetaEditor, and reports whether an `.ex5` artifact was produced. Vercel deployments normally run in `static_precheck` mode until `WORKFUSION_COMPILER_WORKER_URL` points to a reachable HTTPS worker endpoint. If `WORKFUSION_COMPILER_WORKER_URL` is not set, the API can still run local MetaEditor compilation directly via `WORKFUSION_METAEDITOR_ROOT`.
 
 ## PayPal Sandbox Test
 

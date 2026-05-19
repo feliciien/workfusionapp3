@@ -83,6 +83,7 @@ async function check(name, fn) {
 const qaEmail = `qa+${Date.now()}@workfusionapp.test`;
 let userCookie = "";
 let ownerCookie = "";
+let qaGeneratedCode = "";
 
 await check("home page renders commercial dashboard", async () => {
   const response = await fetch(`${baseUrl}/`);
@@ -288,12 +289,29 @@ for (const [feature, url, body] of [
     if (feature === "generate") {
       assert(data.compile?.status === "pass", `generated compile status ${data.compile?.status}`);
       assertCompleteMql(data.mql5Code, "generated EA");
+      qaGeneratedCode = data.mql5Code;
     }
     if (feature === "debug") {
       assert(data.compile?.status === "pass", `debug compile status ${data.compile?.status}`);
       assertCompleteMql(data.fixedCode, "debug fixed EA");
     }
     return `${data.ai.status} ${data.storage}`;
+  });
+}
+
+if (process.env.WORKFUSION_QA_EXPECT_REAL_COMPILE === "true") {
+  await check("real compiler worker compiles generated EA", async () => {
+    assertCompleteMql(qaGeneratedCode, "generated EA for real compile");
+    const { response, data } = await request("POST", "/api/workers/compile", {
+      cookie: userCookie,
+      body: { code: qaGeneratedCode, platform: "mt5", filename: "qa-real-compile.mq5" },
+    });
+    assert(response.ok, `real compile ${response.status}`);
+    assert(data.compiled === true, `expected compiled=true, got ${data.compiled}`);
+    assert(data.status === "pass", `expected pass, got ${data.status}`);
+    assert(["remote-mql-compiler", "metaeditor-mql-compiler"].includes(data.worker), `unexpected worker ${data.worker}`);
+    assert(data.compiler?.artifactFile?.endsWith(".ex5"), "missing .ex5 artifact");
+    return `${data.worker} ${data.compiler.artifactFile}`;
   });
 }
 
