@@ -66,7 +66,7 @@ export async function sendSupportNotification(input: {
 }) {
   const ownerEmail = input.to || process.env.WORKFUSION_OWNER_EMAIL || "";
   const resendKey = process.env.RESEND_API_KEY || "";
-  const from = process.env.WORKFUSION_SUPPORT_FROM || "";
+  const from = process.env.WORKFUSION_SUPPORT_FROM || process.env.FROM_EMAIL || "";
   if (!ownerEmail || !resendKey || !from) {
     return queueSupportNotification(input);
   }
