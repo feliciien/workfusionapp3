@@ -136,6 +136,14 @@ const conversionProof = [
   ["Risk posture", "No martingale promotion, no profit promises, no hidden model name."],
 ];
 
+const seoLinks = [
+  ["/mql5-compiler-fixer", "MQL5 Compiler Fixer", "Fix MetaEditor errors and produce a complete corrected EA draft."],
+  ["/mt5-ea-generator", "MT5 EA Generator", "Turn strategy ideas into structured MQL5 Expert Advisor drafts."],
+  ["/mt4-ea-debugger", "MT4 EA Debugger", "Review and clean MQL4 EA code before manual compile testing."],
+  ["/prop-firm-ea-risk-checker", "Prop Firm EA Risk Checker", "Check sizing, drawdown, spread, and funding-readiness controls."],
+  ["/mql5-code-review", "MQL5 Code Review", "Review lifecycle, trade calls, risk gates, and readiness before backtesting."],
+];
+
 const workflowSteps = [
   ["1", "Describe the EA", "Market, platform, prop preset, risk cap, entry style, and exit rules."],
   ["2", "Generate or debug", "Create MQL, fix compiler errors, and inspect risk/readiness scores."],
@@ -650,6 +658,7 @@ export default function Home() {
             <a href="#console" className="hover:text-white">Console</a>
             <a href="#shots" className="hover:text-white">Screenshots</a>
             <a href="#pricing" className="hover:text-white">Pricing</a>
+            <a href="#resources" className="hover:text-white">Resources</a>
             <a href="#support" className="hover:text-white">Support</a>
             <a href="/legal" className="hover:text-white">Risk disclosure</a>
           </nav>
@@ -674,6 +683,7 @@ export default function Home() {
             <a onClick={() => setMobileMenuOpen(false)} href="#console" className="rounded-lg bg-white/[0.04] px-3 py-3">Console</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#shots" className="rounded-lg bg-white/[0.04] px-3 py-3">Screenshots</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#pricing" className="rounded-lg bg-white/[0.04] px-3 py-3">Pricing</a>
+            <a onClick={() => setMobileMenuOpen(false)} href="#resources" className="rounded-lg bg-white/[0.04] px-3 py-3">Resources</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#support" className="rounded-lg bg-white/[0.04] px-3 py-3">Support</a>
             <a onClick={() => setMobileMenuOpen(false)} href="/legal" className="rounded-lg bg-white/[0.04] px-3 py-3">Risk disclosure</a>
           </nav>
@@ -1056,6 +1066,25 @@ export default function Home() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="resources" className="mx-auto max-w-7xl px-5 py-14">
+        <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">EA builder resources</p>
+            <h2 className="mt-2 text-3xl font-semibold">Dedicated pages for high-intent MT4/MT5 searches.</h2>
+          </div>
+          <a href="/growth" className="text-sm font-semibold text-cyan-300">Open owner growth desk</a>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {seoLinks.map(([href, title, body]) => (
+            <a key={href} href={href} className="rounded-lg border border-white/10 bg-zinc-950 p-5 hover:border-emerald-300/50">
+              <p className="text-lg font-semibold text-white">{title}</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
+              <p className="mt-4 text-sm font-semibold text-emerald-300">Open page</p>
+            </a>
+          ))}
         </div>
       </section>
 

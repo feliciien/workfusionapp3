@@ -84,6 +84,15 @@ const qaEmail = `qa+${Date.now()}@workfusionapp.test`;
 let userCookie = "";
 let ownerCookie = "";
 let qaGeneratedCode = "";
+let qaLeadId = "";
+
+const seoPages = [
+  ["/mql5-compiler-fixer", "MQL5 Compiler Fixer"],
+  ["/mt5-ea-generator", "MT5 EA Generator"],
+  ["/mt4-ea-debugger", "MT4 EA Debugger"],
+  ["/prop-firm-ea-risk-checker", "Prop Firm EA Risk Checker"],
+  ["/mql5-code-review", "MQL5 Code Review"],
+];
 
 await check("home page renders commercial dashboard", async () => {
   const response = await fetch(`${baseUrl}/`);
@@ -112,6 +121,30 @@ await check("legal page renders risk disclosure", async () => {
   assert(response.ok, `legal status ${response.status}`);
   assert(/risk|disclosure|guarantee/i.test(html), "missing risk language");
   return "legal ok";
+});
+
+await check("SEO landing pages render", async () => {
+  for (const [path, phrase] of seoPages) {
+    const response = await fetch(`${baseUrl}${path}`);
+    const html = await response.text();
+    assert(response.ok, `${path} status ${response.status}`);
+    assert(html.includes(phrase), `${path} missing ${phrase}`);
+    assert(html.includes("Join the EA builder list"), `${path} missing opt-in form`);
+  }
+  return `${seoPages.length} SEO pages`;
+});
+
+await check("sitemap and robots expose SEO pages", async () => {
+  const sitemap = await fetch(`${baseUrl}/sitemap.xml`);
+  const sitemapText = await sitemap.text();
+  assert(sitemap.ok, `sitemap status ${sitemap.status}`);
+  for (const [path] of seoPages) assert(sitemapText.includes(path), `sitemap missing ${path}`);
+  const robots = await fetch(`${baseUrl}/robots.txt`);
+  const robotsText = await robots.text();
+  assert(robots.ok, `robots status ${robots.status}`);
+  assert(robotsText.includes("sitemap.xml"), "robots missing sitemap");
+  assert(robotsText.includes("Disallow: /growth"), "robots should disallow growth page");
+  return "sitemap ok";
 });
 
 await check("brand assets are reachable", async () => {
@@ -235,8 +268,42 @@ await check("lead capture stores opt-in", async () => {
   const { response, data } = await request("POST", "/api/leads", { body: { email: qaEmail, persona: "mq5_developer", consent: true } });
   assert(response.ok, `lead capture ${response.status}`);
   assert(data.ok === true, "lead not saved");
+  qaLeadId = data.id;
   return data.storage;
 });
+
+await check("growth admin endpoint is protected", async () => {
+  const { response, data } = await request("GET", "/api/admin/growth");
+  assert(response.status === 401, `expected 401 got ${response.status}`);
+  assert(data.error === "owner_auth_required", "growth API should require owner auth");
+  return "growth protected";
+});
+
+if (adminToken) {
+  await check("growth admin endpoint returns CRM data", async () => {
+    const { response, data } = await request("GET", "/api/admin/growth", { admin: true });
+    assert(response.ok, `growth ${response.status}`);
+    assert(data.storage === "postgres", "growth not using Postgres");
+    assert(Array.isArray(data.leads), "leads array missing");
+    assert(Array.isArray(data.tasks), "tasks array missing");
+    assert(Array.isArray(data.outreachDrafts), "outreach drafts missing");
+    assert((data.leads || []).some((lead) => lead.email === qaEmail), "QA lead missing from CRM");
+    return `${data.leads.length} leads`;
+  });
+
+  await check("growth lead stage update works", async () => {
+    assert(qaLeadId, "QA lead id missing");
+    const { response, data } = await request("PATCH", "/api/admin/growth", {
+      admin: true,
+      body: { id: qaLeadId, stage: "contacted", score: 72, contacted: true, notes: "QA contacted lead" },
+    });
+    assert(response.ok, `growth patch ${response.status}`);
+    assert(data.lead?.stage === "contacted", "stage not updated");
+    assert(data.lead?.score === 72, "score not updated");
+    assert(data.lead?.lastContactedAt, "last contacted missing");
+    return data.lead.stage;
+  });
+}
 
 await check("support endpoint stores AI triage ticket", async () => {
   const { response, data } = await request("POST", "/api/support/messages", {

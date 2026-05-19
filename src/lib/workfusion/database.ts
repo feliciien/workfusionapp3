@@ -150,14 +150,33 @@ export async function ensureWorkfusionSchema() {
         consent boolean not null default false,
         consent_text text,
         status text not null default 'subscribed',
+        stage text not null default 'new',
+        score integer not null default 0,
+        notes text not null default '',
+        last_contacted_at timestamptz,
         user_agent text,
         metadata jsonb not null default '{}'::jsonb,
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now()
       );
 
+      alter table wf_marketing_leads
+        add column if not exists stage text not null default 'new';
+
+      alter table wf_marketing_leads
+        add column if not exists score integer not null default 0;
+
+      alter table wf_marketing_leads
+        add column if not exists notes text not null default '';
+
+      alter table wf_marketing_leads
+        add column if not exists last_contacted_at timestamptz;
+
       create index if not exists wf_marketing_leads_created_idx
         on wf_marketing_leads(created_at desc);
+
+      create index if not exists wf_marketing_leads_stage_idx
+        on wf_marketing_leads(stage, updated_at desc);
 
       create table if not exists wf_support_messages (
         id text primary key,
