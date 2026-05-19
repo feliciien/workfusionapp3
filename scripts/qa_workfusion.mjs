@@ -30,6 +30,17 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function assertCompleteMql(code, label) {
+  const source = String(code || "");
+  assert(source.length > 5000, `${label} is too short to be a complete EA`);
+  assert(!/TODO|Insert final entry|merge your final|Add validated trading logic/iu.test(source), `${label} still contains template placeholders`);
+  assert(source.includes("#property strict"), `${label} missing strict mode`);
+  assert(source.includes("OnInit") && source.includes("OnTick"), `${label} missing lifecycle functions`);
+  assert(/\btrade\.(Buy|Sell)\s*\(|\bOrderSend\s*\(/u.test(source), `${label} missing market execution calls`);
+  assert(/RiskGatePasses|MaxDailyLossPct|MaxSpreadPoints/u.test(source), `${label} missing risk gates`);
+  assert(/CalculateLotSize|RiskPerTradePct|NormalizeVolume/u.test(source), `${label} missing position sizing`);
+}
+
 function cookieFrom(headers) {
   const raw = headers.get("set-cookie") || "";
   return raw.split(",").map((part) => part.split(";")[0]).filter(Boolean).join("; ");
@@ -272,6 +283,14 @@ for (const [feature, url, body] of [
     assert(response.ok, `${feature} ${response.status}: ${data?.message || data?.error || ""}`);
     assert(data.feature === feature, `feature mismatch ${data.feature}`);
     assert(data.ai?.status, "AI status missing");
+    if (feature === "generate") {
+      assert(data.compile?.status === "pass", `generated compile status ${data.compile?.status}`);
+      assertCompleteMql(data.mql5Code, "generated EA");
+    }
+    if (feature === "debug") {
+      assert(data.compile?.status === "pass", `debug compile status ${data.compile?.status}`);
+      assertCompleteMql(data.fixedCode, "debug fixed EA");
+    }
     return `${data.ai.status} ${data.storage}`;
   });
 }

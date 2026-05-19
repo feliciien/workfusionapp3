@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { featureAllowance, getPersistentAccess, limitReachedPayload, limitsAfterRun, recordUsageEvent } from "@/lib/workfusion/account-store";
 import { aiMeta, askWorkfusionAi, stringArrayField, stringField } from "@/lib/workfusion/openai";
 import { getSession } from "@/lib/workfusion/session";
+import { compileCheck } from "@/lib/workfusion/worker";
 import { fixedMql } from "./_engine";
 
 export const config = {
@@ -18,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const fallbackCode = fixedMql(req.body || {});
   const fallbackIssues = ["Missing declarations or platform-specific lifecycle issues may exist in the original code"];
   const fallbackFixes = ["Use strict mode", "Declare account state once", "Keep entry logic inside OnTick"];
-  const fallbackSummary = "The debugger produced a clean EA scaffold and highlighted where final trading logic should be merged.";
+  const fallbackSummary = "The debugger produced a complete compile-aware EA replacement with risk gates and execution logic.";
   const ai = await askWorkfusionAi({
     task: "debug",
     payload: req.body || {},
@@ -36,18 +37,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
   });
   const parsed = ai.parsed || {};
+  const aiFixedCode = stringField(parsed.fixedCode, "");
+  const aiCheck = compileCheck(aiFixedCode);
+  const fallbackCheck = compileCheck(fallbackCode);
+  const useAiCode = aiFixedCode.trim().length > 0 && aiCheck.status === "pass";
+  const fixedCode = useAiCode ? aiFixedCode : fallbackCode;
+  const compile = useAiCode ? aiCheck : fallbackCheck;
   await recordUsageEvent({ session: access.session, eventType: "feature_run", feature: "debug", plan: access.plan });
 
   return res.status(200).json({
     status: "Fixed draft generated",
     summary: stringField(parsed.summary, fallbackSummary),
-    fixedCode: stringField(parsed.fixedCode, fallbackCode),
+    fixedCode,
+    compile,
     issues: stringArrayField(parsed.issues, fallbackIssues),
     fixes: stringArrayField(parsed.fixes, fallbackFixes),
     feature: "debug",
     plan: access.plan,
     remaining: limitsAfterRun(access, "debug", allowance),
-    ai: aiMeta(ai),
+    ai: { ...aiMeta(ai), fixedCodeAccepted: useAiCode, fixedCodeDiagnostics: aiCheck.diagnostics },
     storage: access.storage,
   });
 }

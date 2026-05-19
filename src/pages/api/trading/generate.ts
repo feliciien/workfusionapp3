@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { featureAllowance, getPersistentAccess, limitReachedPayload, limitsAfterRun, recordUsageEvent } from "@/lib/workfusion/account-store";
 import { aiMeta, askWorkfusionAi, numberField, stringField } from "@/lib/workfusion/openai";
 import { getSession } from "@/lib/workfusion/session";
+import { compileCheck } from "@/lib/workfusion/worker";
 import { buildRecommendation, buildSummary, generateMql, scoreIdea } from "./_engine";
 
 export const config = {
@@ -33,6 +34,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
   });
   const parsed = ai.parsed || {};
+  const aiCode = stringField(parsed.mql5Code, "");
+  const aiCheck = compileCheck(aiCode);
+  const fallbackCheck = compileCheck(fallbackCode);
+  const useAiCode = aiCode.trim().length > 0 && aiCheck.status === "pass";
+  const selectedCode = useAiCode ? aiCode : fallbackCode;
+  const selectedCheck = useAiCode ? aiCheck : fallbackCheck;
   await recordUsageEvent({ session: access.session, eventType: "feature_run", feature: "generate", plan: access.plan });
 
   return res.status(200).json({
@@ -41,11 +48,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     fundingReadiness: numberField(parsed.fundingReadiness, score.fundingReadiness),
     summary: stringField(parsed.summary, summary),
     recommendation: stringField(parsed.recommendation, recommendation),
-    mql5Code: stringField(parsed.mql5Code, fallbackCode),
+    mql5Code: selectedCode,
+    compile: selectedCheck,
     feature: "generate",
     plan: access.plan,
     remaining: limitsAfterRun(access, "generate", allowance),
-    ai: aiMeta(ai),
+    ai: { ...aiMeta(ai), generatedCodeAccepted: useAiCode, generatedCodeDiagnostics: aiCheck.diagnostics },
     storage: access.storage,
   });
 }
