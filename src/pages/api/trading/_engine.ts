@@ -229,6 +229,58 @@ double SpreadPoints()
    return((ask - bid) / _Point);
 }
 
+int MinimumStopDistancePoints()
+{
+   int stopLevel = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   int freezeLevel = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_FREEZE_LEVEL);
+   int spreadLevel = (int)MathCeil(SpreadPoints());
+   int minimum = stopLevel;
+   if(freezeLevel > minimum) minimum = freezeLevel;
+   if(spreadLevel > minimum) minimum = spreadLevel;
+   if(minimum < 1) minimum = 1;
+   return(minimum + 2);
+}
+
+bool ValidateBuyStops(const double bid, const double ask, const double stopLoss, const double takeProfit)
+{
+   int minimum = MinimumStopDistancePoints();
+   double stopDistance = (bid - stopLoss) / _Point;
+   double targetDistance = (takeProfit - ask) / _Point;
+   if(stopDistance < minimum || targetDistance < minimum)
+   {
+      Print("Invalid buy stops blocked before send. Bid: ", DoubleToString(bid, _Digits),
+            " Ask: ", DoubleToString(ask, _Digits),
+            " SpreadPoints: ", DoubleToString(SpreadPoints(), 1),
+            " MinDistancePoints: ", minimum,
+            " SL: ", DoubleToString(stopLoss, _Digits),
+            " TP: ", DoubleToString(takeProfit, _Digits),
+            " StopDistance: ", DoubleToString(stopDistance, 1),
+            " TargetDistance: ", DoubleToString(targetDistance, 1));
+      return(false);
+   }
+   return(true);
+}
+
+bool ValidateSellStops(const double bid, const double ask, const double stopLoss, const double takeProfit)
+{
+   int minimum = MinimumStopDistancePoints();
+   double stopDistance = (stopLoss - ask) / _Point;
+   double targetDistance = (bid - takeProfit) / _Point;
+   if(stopDistance < minimum || targetDistance < minimum)
+   {
+      Print("Invalid sell stops blocked before send. Bid: ", DoubleToString(bid, _Digits),
+            " Ask: ", DoubleToString(ask, _Digits),
+            " SpreadPoints: ", DoubleToString(SpreadPoints(), 1),
+            " MinDistancePoints: ", minimum,
+            " SL: ", DoubleToString(stopLoss, _Digits),
+            " TP: ", DoubleToString(takeProfit, _Digits),
+            " StopDistance: ", DoubleToString(stopDistance, 1),
+            " TargetDistance: ", DoubleToString(targetDistance, 1));
+      return(false);
+   }
+   return(true);
+}
+
 bool SessionAllowed()
 {
    if(!UseSessionFilter) return(true);
@@ -326,16 +378,21 @@ int VolumeDigits(double lotStep)
 bool EnterBuy()
 {
    int safeStop = StopLossPoints;
-   if(safeStop < 1) safeStop = 1;
    int safeTarget = TakeProfitPoints;
-   if(safeTarget < 1) safeTarget = 1;
+   int minimumStop = MinimumStopDistancePoints();
+   if(safeStop < minimumStop) safeStop = minimumStop;
+   if(safeTarget < minimumStop) safeTarget = minimumStop;
 
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-   if(ask <= 0.0) return(false);
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   if(ask <= 0.0 || bid <= 0.0) return(false);
 
-   double lots = CalculateLotSize(safeStop);
-   double stopLoss = NormalizeDouble(ask - safeStop * _Point, _Digits);
+   double stopLoss = NormalizeDouble(bid - safeStop * _Point, _Digits);
    double takeProfit = NormalizeDouble(ask + safeTarget * _Point, _Digits);
+   if(!ValidateBuyStops(bid, ask, stopLoss, takeProfit)) return(false);
+
+   int riskStopPoints = (int)MathCeil((ask - stopLoss) / _Point);
+   double lots = CalculateLotSize(riskStopPoints);
 
    bool sent = trade.Buy(lots, _Symbol, ask, stopLoss, takeProfit, "Workfusion EA buy");
    if(sent)
@@ -345,7 +402,13 @@ bool EnterBuy()
    }
    else
    {
-      Print("Buy failed. Retcode: ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+      Print("Buy failed. Retcode: ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription(),
+            " Bid: ", DoubleToString(bid, _Digits),
+            " Ask: ", DoubleToString(ask, _Digits),
+            " SpreadPoints: ", DoubleToString(SpreadPoints(), 1),
+            " MinDistancePoints: ", minimumStop,
+            " SL: ", DoubleToString(stopLoss, _Digits),
+            " TP: ", DoubleToString(takeProfit, _Digits));
    }
    return(sent);
 }
@@ -353,16 +416,21 @@ bool EnterBuy()
 bool EnterSell()
 {
    int safeStop = StopLossPoints;
-   if(safeStop < 1) safeStop = 1;
    int safeTarget = TakeProfitPoints;
-   if(safeTarget < 1) safeTarget = 1;
+   int minimumStop = MinimumStopDistancePoints();
+   if(safeStop < minimumStop) safeStop = minimumStop;
+   if(safeTarget < minimumStop) safeTarget = minimumStop;
 
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   if(bid <= 0.0) return(false);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   if(bid <= 0.0 || ask <= 0.0) return(false);
 
-   double lots = CalculateLotSize(safeStop);
-   double stopLoss = NormalizeDouble(bid + safeStop * _Point, _Digits);
+   double stopLoss = NormalizeDouble(ask + safeStop * _Point, _Digits);
    double takeProfit = NormalizeDouble(bid - safeTarget * _Point, _Digits);
+   if(!ValidateSellStops(bid, ask, stopLoss, takeProfit)) return(false);
+
+   int riskStopPoints = (int)MathCeil((stopLoss - bid) / _Point);
+   double lots = CalculateLotSize(riskStopPoints);
 
    bool sent = trade.Sell(lots, _Symbol, bid, stopLoss, takeProfit, "Workfusion EA sell");
    if(sent)
@@ -372,7 +440,13 @@ bool EnterSell()
    }
    else
    {
-      Print("Sell failed. Retcode: ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription());
+      Print("Sell failed. Retcode: ", trade.ResultRetcode(), " ", trade.ResultRetcodeDescription(),
+            " Bid: ", DoubleToString(bid, _Digits),
+            " Ask: ", DoubleToString(ask, _Digits),
+            " SpreadPoints: ", DoubleToString(SpreadPoints(), 1),
+            " MinDistancePoints: ", minimumStop,
+            " SL: ", DoubleToString(stopLoss, _Digits),
+            " TP: ", DoubleToString(takeProfit, _Digits));
    }
    return(sent);
 }

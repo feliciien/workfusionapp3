@@ -17,13 +17,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const allowance = await featureAllowance(access, "debug");
   if (!allowance.allowed) return res.status(402).json(limitReachedPayload(access, allowance));
 
-  const fallbackCode = fixedMql(req.body || {});
-  const fallbackIssues = ["Missing declarations or platform-specific lifecycle issues may exist in the original code"];
-  const fallbackFixes = ["Use strict mode", "Declare account state once", "Keep entry logic inside OnTick"];
-  const fallbackSummary = "The debugger produced a complete compile-aware EA replacement with risk gates and execution logic.";
+  const payload = req.body || {};
+  const errorText = `${String(payload.errors || "")} ${String(payload.code || "")}`;
+  const invalidStopsContext = /invalid stops|retcode\s*=?\s*10016|error\s*130|stop loss|stoploss/iu.test(errorText);
+  const fallbackCode = fixedMql(payload);
+  const fallbackIssues = invalidStopsContext
+    ? [
+      "Invalid stops are execution validation failures, not normal compiler errors.",
+      "The EA must validate SL/TP against live Bid/Ask, current spread, stop level, and freeze level before sending the request.",
+      "A small XAUUSD stop can be inside the spread even when a manual or pending-order test appears to work.",
+    ]
+    : ["Missing declarations or platform-specific lifecycle issues may exist in the original code"];
+  const fallbackFixes = invalidStopsContext
+    ? [
+      "Add SYMBOL_TRADE_STOPS_LEVEL and SYMBOL_TRADE_FREEZE_LEVEL validation.",
+      "For buy orders, validate SL below Bid and TP above Ask by enough points.",
+      "For sell orders, validate SL above Ask and TP below Bid by enough points.",
+      "Log Bid, Ask, spread, SL, TP, minimum distance, retcode, and retcode description for every failed request.",
+    ]
+    : ["Use strict mode", "Declare account state once", "Keep entry logic inside OnTick"];
+  const fallbackSummary = invalidStopsContext
+    ? "The debugger detected an MT5 invalid-stops pattern and produced a replacement EA draft with spread, stop-level, freeze-level, and retcode diagnostics."
+    : "The debugger produced a complete compile-aware EA replacement with risk gates and execution logic.";
   const ai = await askWorkfusionAi({
     task: "debug",
-    payload: req.body || {},
+    payload,
     localBaseline: {
       summary: fallbackSummary,
       fixedCode: fallbackCode,

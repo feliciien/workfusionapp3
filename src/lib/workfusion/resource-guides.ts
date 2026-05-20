@@ -67,8 +67,8 @@ export const resourceGuides: Record<string, ResourceGuide> = {
     sections: [
       {
         title: "Check direction and distance",
-        body: "Buy and sell orders require stops on different sides of price. Then the distance must respect the symbol stop level and freeze level.",
-        bullets: ["Buy SL below ask, buy TP above ask", "Sell SL above bid, sell TP below bid", "Distance must exceed symbol stop restrictions"],
+        body: "Buy and sell orders require stops on different sides of the live quote. Then the distance must respect spread, stop level, and freeze level.",
+        bullets: ["Buy SL below Bid and buy TP above Ask", "Sell SL above Ask and sell TP below Bid", "Distance must exceed symbol stop, freeze, and spread restrictions"],
       },
       {
         title: "Normalize price precision",
@@ -81,7 +81,7 @@ export const resourceGuides: Record<string, ResourceGuide> = {
         bullets: ["Validate stop distance", "Calculate lot from risk and stop size", "Reject the trade if stop validation fails"],
       },
     ],
-    checklist: ["Read symbol digits", "Read stop level and freeze level", "Normalize SL and TP", "Reject trades with invalid distances", "Log the rejected price, SL, TP, and reason"],
+    checklist: ["Read Bid and Ask", "Read current spread", "Read stop level and freeze level", "Normalize SL and TP", "Reject trades with invalid distances", "Log retcode, price, SL, TP, and reason"],
     cta: "Use Workfusion to review the EA execution block and add stop validation before the next compile/test cycle.",
     related: ["prop-firm-spread-filter-ea", "fixed-risk-lot-sizing-mql5-ea", "mql5-logging-diagnostics-ea"],
   },
@@ -921,4 +921,3 @@ export function resourceGuidesByCluster() {
     },
   );
 }
-

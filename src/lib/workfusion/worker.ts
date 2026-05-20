@@ -45,6 +45,18 @@ export function compileCheck(code: string): WorkerCheck {
     diagnostics.push("No max-trades-per-day guard found.");
     score -= 10;
   }
+  if (/invalid stops|retcode\s*=?\s*10016|error\s*130/i.test(source) && !/SYMBOL_TRADE_STOPS_LEVEL|MODE_STOPLEVEL/i.test(source)) {
+    diagnostics.push("Invalid-stops context detected but no broker stop-level validation found.");
+    score -= 18;
+  }
+  if (/invalid stops|retcode\s*=?\s*10016|error\s*130/i.test(source) && !/SYMBOL_TRADE_FREEZE_LEVEL|MODE_FREEZELEVEL/i.test(source)) {
+    diagnostics.push("Invalid-stops context detected but no freeze-level validation found.");
+    score -= 10;
+  }
+  if (/invalid stops|retcode\s*=?\s*10016|error\s*130/i.test(source) && !/ResultRetcode|GetLastError|retcode/i.test(source)) {
+    diagnostics.push("Invalid-stops context detected but no trade retcode logging found.");
+    score -= 8;
+  }
 
   if (diagnostics.length === 0) diagnostics.push("Static compile pre-check passed. Run MetaEditor before live use.");
 
