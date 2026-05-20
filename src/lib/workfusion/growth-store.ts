@@ -214,8 +214,18 @@ function buildTasks(counts: Record<string, number>) {
     },
     {
       priority: "P1",
-      title: "Promote one resource guide",
-      detail: `${resourceGuideSlugs.length} SEO guides are live; share one helpful answer and link only when relevant.`,
+      title: "Find three high-intent EA questions",
+      detail: "Look for public MT4/MT5 compiler, EA generator, invalid stops, and no-trades-in-tester questions. Answer the fix first.",
+    },
+    {
+      priority: "P1",
+      title: "Promote one resource guide ethically",
+      detail: `${resourceGuideSlugs.length} SEO guides are live; share one helpful answer and link only when the guide directly helps.`,
+    },
+    {
+      priority: "P2",
+      title: "Keep BoltIQ and Workfusion separate",
+      detail: "Do not pitch BoltIQ partner candidates as Workfusion customers unless they explicitly opt into the product discussion.",
     },
     {
       priority: "P2",
@@ -245,6 +255,12 @@ function buildOutreachDrafts() {
       title: "Helpful debug angle",
       body:
         "I built a small assistant for EA builders: generate MQL drafts, debug MetaEditor errors, and run a readiness check before manual backtesting. Looking for feedback from serious MQL4/MQL5 developers.",
+    },
+    {
+      channel: "MQL freelancer",
+      title: "Partner-friendly angle",
+      body:
+        "Workfusion is not replacing MQL freelancers. It can help produce cleaner first drafts, compiler diagnostics, and risk/readiness notes before a developer takes over the serious review.",
     },
     {
       channel: "Forum answer",

@@ -15,6 +15,9 @@ Do not pitch guaranteed profit, funded account passing, signals, or investment r
 
 ## Hard Rules
 
+- Keep Workfusionapp and BoltIQ separate. Workfusionapp is the commercial MT4/MT5 EA builder product. BoltIQ is internal trading operations / future hedge-fund infrastructure.
+- Do not pitch BoltIQ partner candidates as Workfusionapp customers unless they explicitly opt into a product discussion.
+- Do not share BoltIQ reports, partner briefs, trading telemetry, broker information, or future hedge-fund plans in Workfusionapp outreach.
 - Do not buy email lists.
 - Do not scrape private emails.
 - Do not mass-message people who did not opt in.
@@ -44,11 +47,13 @@ Do not pitch guaranteed profit, funded account passing, signals, or investment r
 
 1. Check `/growth` for new leads and support issues.
 2. Reply to open support first.
-3. Pick one guide from `/resources`.
-4. Find one relevant community discussion where the answer is genuinely useful.
-5. Post one short LinkedIn build note or debugging lesson.
-6. Move contacted leads to the correct CRM stage.
-7. Record what produced replies, not just views.
+3. Find three high-intent public MT4/MT5 EA questions.
+4. Answer two questions without linking anywhere.
+5. Answer one question with a Workfusion guide only when the link directly helps.
+6. Pick one guide from `/resources`.
+7. Post one short LinkedIn build note or debugging lesson.
+8. Move contacted leads to the correct CRM stage.
+9. Record what produced replies, not just views.
 
 ## Lead Stages
 
@@ -70,3 +75,16 @@ The first goal is not 10k cold emails. The first goal is 10 serious builders who
 - understand it is a development tool,
 - are willing to pay when it saves time.
 
+## Source Tags
+
+Use consistent source tags in the CRM:
+
+- `mql5_freelance`
+- `mql5_codebase_forum`
+- `earnforex_forum`
+- `forexfactory_platform_tech`
+- `linkedin_build_note`
+- `youtube_demo`
+- `partner_mql_freelancer`
+- `partner_trading_educator`
+- `support_inbound`
