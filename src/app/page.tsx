@@ -202,6 +202,34 @@ function looksLikeEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function usageEventFor(endpoint: string, label: string) {
+  if (endpoint === "/api/trading/generate") return { eventType: "start_generate", feature: "generate" };
+  if (endpoint === "/api/trading/debug") return { eventType: "compiler_error_submitted", feature: "debug" };
+  if (endpoint === "/api/workers/compile") return { eventType: "compile_check_started", feature: "compile_check" };
+  if (endpoint === "/api/workers/backtest") return { eventType: "backtest_estimate_started", feature: "backtest_estimate" };
+  if (endpoint === "/api/trading/download") return { eventType: "download_clicked", feature: "download" };
+  if (endpoint === "/api/trading/optimize") return { eventType: "start_optimize", feature: "optimize" };
+  if (endpoint === "/api/trading/debrief") return { eventType: "report_analyze_started", feature: "debrief" };
+  return { eventType: "workflow_action_started", feature: label.toLowerCase().replace(/\s+/gu, "_") };
+}
+
+async function trackUsageEvent(eventType: string, feature: string, metadata: Record<string, unknown> = {}) {
+  try {
+    await fetch("/api/analytics/usage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+      body: JSON.stringify({
+        eventType,
+        feature,
+        page: window.location.pathname,
+        metadata,
+      }),
+    });
+  } catch {
+    return;
+  }
+}
+
 function BrandMark() {
   return (
     <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-[#101112] shadow-lg shadow-emerald-500/20">
@@ -424,8 +452,16 @@ export default function Home() {
     const codeFromRequest = typeof body.code === "string" ? body.code : "";
     const previousCode = pickEaCode(result, codeFromRequest || debugCode);
     const shouldPreserveCode = !["/api/trading/generate", "/api/trading/debug"].includes(endpoint);
+    const trackedEvent = usageEventFor(endpoint, label);
 
     setActiveAction(label);
+    trackUsageEvent(trackedEvent.eventType, trackedEvent.feature, {
+      market,
+      platform,
+      label,
+      hasCode: Boolean(codeFromRequest || currentEaCode),
+      hasErrors: Boolean(debugErrors.trim()),
+    }).catch(() => undefined);
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -655,7 +691,7 @@ export default function Home() {
     }
   }
 
-  async function joinLeadList() {
+  async function joinLeadList(source = "homepage_ea_builder_updates") {
     setLeadStatus({ status: "loading", message: "Saving opt-in email." });
     try {
       const response = await fetch("/api/leads", {
@@ -664,7 +700,7 @@ export default function Home() {
         body: JSON.stringify({
           email: leadEmail,
           persona: leadPersona,
-          source: "homepage_ea_builder_updates",
+          source,
           consent: leadConsent,
         }),
       });
@@ -676,6 +712,7 @@ export default function Home() {
         return;
       }
       setLeadStatus({ status: "success", message: data.message || "You are on the update list." });
+      trackUsageEvent("lead_opt_in_client_confirmed", source, { persona: leadPersona }).catch(() => undefined);
       notify({ tone: "success", title: "Opt-in saved", body: "Workfusion EA builder updates are enabled for this email." });
     } catch {
       setLeadStatus({ status: "error", message: "Network request failed while saving opt-in." });
@@ -761,18 +798,55 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button
-              onClick={() => document.getElementById("console")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => {
+                trackUsageEvent("cta_click", "homepage_primary_generate", { destination: "console" }).catch(() => undefined);
+                document.getElementById("console")?.scrollIntoView({ behavior: "smooth" });
+              }}
               className="h-12 rounded-lg bg-emerald-300 px-6 text-base text-[#101112] hover:bg-emerald-200"
             >
               Generate a free EA draft
             </Button>
             <Button
               variant="outline"
-              onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => {
+                trackUsageEvent("cta_click", "homepage_compare_plans", { destination: "pricing" }).catch(() => undefined);
+                document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+              }}
               className="h-12 rounded-lg border-zinc-700 bg-zinc-950 px-6 text-base text-white hover:bg-zinc-900"
             >
               Compare plans
             </Button>
+          </div>
+          <div className="mt-5 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4">
+            <p className="text-sm font-semibold text-emerald-100">Get the EA debugging checklist and product updates.</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Opt-in only. Useful for compiler errors, generated EA drafts, and risk/readiness workflow updates.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+              <input
+                value={leadEmail}
+                onChange={(event) => setLeadEmail(event.target.value)}
+                placeholder="developer@example.com"
+                className="min-h-12 rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
+              />
+              <Button
+                disabled={leadStatus.status === "loading"}
+                onClick={() => joinLeadList("homepage_hero_debug_checklist")}
+                className="h-12 rounded-lg bg-emerald-300 px-5 text-[#101112] hover:bg-emerald-200"
+              >
+                Send checklist
+              </Button>
+            </div>
+            <label className="mt-3 flex items-start gap-3 text-sm leading-6 text-zinc-300">
+              <input
+                type="checkbox"
+                checked={leadConsent}
+                onChange={(event) => setLeadConsent(event.target.checked)}
+                className="mt-1"
+              />
+              I agree to receive Workfusion EA builder updates. No scraped lists, no trading promises.
+            </label>
+            <p className={`mt-2 text-sm ${leadStatus.status === "error" ? "text-rose-300" : leadStatus.status === "success" ? "text-emerald-300" : "text-zinc-400"}`}>
+              {leadStatus.message}
+            </p>
           </div>
           <div className="mt-8 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
             {conversionProof.map(([label, value]) => (
@@ -1261,7 +1335,7 @@ export default function Home() {
             </label>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm leading-6 text-zinc-400">{leadStatus.message}</p>
-              <Button disabled={leadStatus.status === "loading"} onClick={joinLeadList} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
+              <Button disabled={leadStatus.status === "loading"} onClick={() => joinLeadList()} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
                 Join list
               </Button>
             </div>

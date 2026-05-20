@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
+import { recordUsageEvent } from "@/lib/workfusion/account-store";
+import { getSession, isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
 import { saveMarketingLead } from "@/lib/workfusion/support-store";
 
 const CONSENT_TEXT = "I agree to receive Workfusion EA builder updates and understand I can unsubscribe later.";
@@ -29,6 +30,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     metadata: {
       page: req.headers.referer || "/",
       acquisition: "opt_in",
+    },
+  });
+  await recordUsageEvent({
+    session: getSession(req),
+    eventType: "lead_opt_in",
+    feature: source || "website_lead_form",
+    metadata: {
+      persona,
+      source,
+      page: req.headers.referer || "/",
     },
   });
 

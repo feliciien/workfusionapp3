@@ -18,6 +18,21 @@ function validEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email.trim());
 }
 
+function guestId() {
+  const key = "workfusion_guest_id";
+  try {
+    const existing = window.localStorage.getItem(key);
+    if (existing) return existing;
+    const value = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `guest_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    window.localStorage.setItem(key, value);
+    return value;
+  } catch {
+    return "guest_ephemeral";
+  }
+}
+
 export function LeadCaptureForm({ source, persona = "mq5_developer", compact = false }: LeadCaptureFormProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(persona);
@@ -40,7 +55,7 @@ export function LeadCaptureForm({ source, persona = "mq5_developer", compact = f
     try {
       const response = await fetch("/api/leads", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": guestId() },
         body: JSON.stringify({ email, persona: role, source, consent }),
       });
       const data = await response.json();
