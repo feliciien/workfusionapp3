@@ -31,6 +31,13 @@ async function waitForIdle(page: Page) {
   await expect(page.getByText("Ready").first()).toBeVisible({ timeout: 120_000 });
 }
 
+async function waitForActionComplete(page: Page, label: string) {
+  const running = page.getByText(`Running ${label}`).first();
+  await running.waitFor({ state: "visible", timeout: 10_000 }).catch(() => undefined);
+  await expect(running).toBeHidden({ timeout: 120_000 });
+  await waitForIdle(page);
+}
+
 async function openConsole(page: Page) {
   await page.goto("/", { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Generate a free EA draft" }).click();
@@ -59,29 +66,29 @@ test("generate, compile, backtest, and download stay understandable from the fro
     await openConsole(page);
 
     await page.getByRole("button", { name: "Generate EA", exact: true }).click();
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Generate");
     await expect.poll(async () => (await currentDraft(page).innerText()).length, { timeout: 120_000 }).toBeGreaterThan(5_000);
     await expect(currentDraft(page)).toContainText("#property strict");
     await expect(page.getByText("Want a free workflow review or help with the next compiler error?")).toBeVisible();
 
     const generatedDraft = await currentDraft(page).innerText();
     await page.getByRole("button", { name: "Compile check" }).click();
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Compile check");
     await expect(page.getByText("Checked input: this action reviewed the EA draft shown here")).toBeVisible();
     await expect(page.getByText(/Compiler/i).first()).toBeVisible();
     await expect(currentDraft(page)).toContainText(generatedDraft.slice(0, 80));
 
     await page.getByRole("button", { name: "Backtest estimate" }).click();
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Backtest");
     await expect(page.getByText("This is an estimator, not a real MT5 Strategy Tester result.")).toBeVisible();
     await expect(currentDraft(page)).toContainText(generatedDraft.slice(0, 80));
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download EA" }).click();
     const download = await downloadPromise;
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Download");
     expect(download.suggestedFilename()).toMatch(/workfusion-ea\.mq5$/u);
-    await expect(page.getByText(/Download ready: workfusion-ea\.mq5/i)).toBeVisible();
+    await expect(page.getByText(/Download ready: workfusion-ea\.mq5/i).first()).toBeVisible();
   });
 });
 
@@ -90,7 +97,7 @@ test("real MQL5 issue templates produce visible fixes and tutorial links", async
     await openConsole(page);
     await page.getByRole("button", { name: /Invalid volume 10014/ }).click();
     await page.getByRole("button", { name: "Fix code" }).click();
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Debug");
     await expect(page.getByText(/Invalid volume/i).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /fix mql5 invalid volume lot step/i })).toBeVisible();
 
@@ -105,13 +112,13 @@ test("compile check and backtest estimate do not erase the current draft", async
     await openConsole(page);
     await page.getByRole("button", { name: /CopyBuffer array range/ }).click();
     await page.getByRole("button", { name: "Compile check" }).click();
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Compile check");
     await expect(page.getByText("Checked input: this action reviewed the EA draft shown here")).toBeVisible();
     await expect(page.getByText(/Array out-of-range risk detected/i)).toBeVisible();
     await expect(currentDraft(page)).toContainText("CopyBuffer");
 
     await page.getByRole("button", { name: "Backtest estimate" }).click();
-    await waitForIdle(page);
+    await waitForActionComplete(page, "Backtest");
     await expect(page.getByText("This is an estimator, not a real MT5 Strategy Tester result.")).toBeVisible();
     await expect(currentDraft(page)).toContainText("CopyBuffer");
   });
@@ -142,7 +149,7 @@ test("high-intent resource pages show one fix path and one opt-in path", async (
     ]) {
       await page.goto(path, { waitUntil: "networkidle" });
       await expect(page.getByText("Implementation checklist")).toBeVisible();
-      await expect(page.getByText("Paste compiler errors / Generate EA draft / Get risk check")).toBeVisible();
+      await expect(page.getByText("Paste compiler errors / Generate EA draft / Get risk check").first()).toBeVisible();
       await expect(page.locator('input[placeholder="developer@example.com"]')).toBeVisible();
     }
   });
