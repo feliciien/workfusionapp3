@@ -11,6 +11,10 @@ type TradingResult = {
   recommendation?: string;
   mql5Code?: string;
   fixedCode?: string;
+  sourceCode?: string;
+  checkedCode?: string;
+  lastAction?: string;
+  lastActionLabel?: string;
   issues?: string[];
   fixes?: string[];
   params?: Record<string, string>;
@@ -179,6 +183,18 @@ function toneClasses(tone: Toast["tone"]) {
   if (tone === "error") return "border-rose-400/40 bg-rose-400/10 text-rose-100";
   if (tone === "warning") return "border-amber-400/40 bg-amber-400/10 text-amber-100";
   return "border-cyan-400/40 bg-cyan-400/10 text-cyan-100";
+}
+
+function pickEaCode(result?: TradingResult | null, fallback = "") {
+  return result?.fixedCode || result?.mql5Code || result?.sourceCode || result?.checkedCode || fallback;
+}
+
+function codeSourceLabel(result?: TradingResult | null) {
+  if (result?.fixedCode) return "Fixed EA draft";
+  if (result?.mql5Code) return "Generated EA draft";
+  if (result?.sourceCode) return "Preserved EA draft";
+  if (result?.checkedCode) return "Last checked EA draft";
+  return "No generated EA yet";
 }
 
 function looksLikeEmail(value: string) {
@@ -395,14 +411,20 @@ export default function Home() {
   const payload = useMemo(() => ({ idea, market, preset, platform, propMode }), [idea, market, preset, platform, propMode]);
   const limits = result?.remaining || account?.limits || { generate: 3, optimize: 1, debrief: 1, debug: 1, download: 1 };
   const plan = result?.plan || account?.plan || "checking";
+  const currentEaCode = pickEaCode(result);
+  const codeForChecks = currentEaCode || debugCode;
+  const currentCodeSource = codeSourceLabel(result);
 
   function notify(next: Toast) {
     setToast(next);
   }
 
   async function run(endpoint: string, body: Record<string, unknown>, label: string) {
+    const codeFromRequest = typeof body.code === "string" ? body.code : "";
+    const previousCode = pickEaCode(result, codeFromRequest || debugCode);
+    const shouldPreserveCode = !["/api/trading/generate", "/api/trading/debug"].includes(endpoint);
+
     setActiveAction(label);
-    setResult(null);
     try {
       const response = await fetch(endpoint, {
         method: "POST",
@@ -412,18 +434,46 @@ export default function Home() {
       const data = await response.json();
       if (!response.ok || data.error) {
         const message = data.message || data.error || "Request failed.";
-        setResult({ error: message });
+        setResult((current) => ({
+          ...(shouldPreserveCode ? current || {} : {}),
+          error: message,
+          sourceCode: shouldPreserveCode ? pickEaCode(current, previousCode) : undefined,
+          checkedCode: codeFromRequest || undefined,
+          lastAction: endpoint,
+          lastActionLabel: label,
+        }));
         notify({ tone: "error", title: `${label} failed`, body: message });
         return;
       }
-      setResult(data);
+      setResult((current) => {
+        const currentCode = pickEaCode(current, previousCode);
+        const returnedCode = data.fixedCode || data.mql5Code || "";
+        const preservedCode = returnedCode || (shouldPreserveCode ? currentCode : "");
+        const base = shouldPreserveCode ? { ...(current || {}), ...data } : data;
+
+        return {
+          ...base,
+          error: undefined,
+          sourceCode: preservedCode || undefined,
+          checkedCode: codeFromRequest || data.checkedCode || undefined,
+          lastAction: endpoint,
+          lastActionLabel: label,
+        };
+      });
       notify({
         tone: data.compiled === false && data.compiler?.mode === "static_precheck" ? "warning" : "success",
         title: `${label} complete`,
         body: data.summary || data.message || data.compiler?.message || "Artifact generated successfully.",
       });
     } catch {
-      setResult({ error: "Request failed. Check the deployment logs and API route." });
+      setResult((current) => ({
+        ...(shouldPreserveCode ? current || {} : {}),
+        error: "Request failed. Check the deployment logs and API route.",
+        sourceCode: shouldPreserveCode ? pickEaCode(current, previousCode) : undefined,
+        checkedCode: codeFromRequest || undefined,
+        lastAction: endpoint,
+        lastActionLabel: label,
+      }));
       notify({ tone: "error", title: `${label} failed`, body: "Network request failed." });
     } finally {
       setActiveAction(null);
@@ -509,7 +559,7 @@ export default function Home() {
           propMode,
           riskScore: result?.riskScore || 0,
           compliance: result?.compliance || 0,
-          code: result?.mql5Code || result?.fixedCode || "",
+          code: currentEaCode || debugCode,
         }),
       });
       const data = await response.json();
@@ -824,7 +874,7 @@ export default function Home() {
                   "/api/trading/download",
                   {
                     filename: platform === "mt4" ? "workfusion-ea.mq4" : "workfusion-ea.mq5",
-                    content: result?.mql5Code || result?.fixedCode || "",
+                    content: currentEaCode || debugCode,
                   },
                   "Download",
                 )}
@@ -878,25 +928,30 @@ export default function Home() {
                 onClick={() => run(
                   "/api/workers/compile",
                   {
-                    code: result?.mql5Code || result?.fixedCode || debugCode,
+                    code: codeForChecks,
                     platform,
                     filename: platform === "mt4" ? "workfusion-ea.mq4" : "workfusion-ea.mq5",
                   },
-                  "Compile",
+                  "Compile check",
                 )}
                 variant="outline"
                 className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800"
               >
-                Compile EA
+                Compile check
               </Button>
-              <Button disabled={!!activeAction} onClick={() => run("/api/workers/backtest", { code: result?.mql5Code || result?.fixedCode || debugCode, idea }, "Backtest")} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
+              <Button disabled={!!activeAction} onClick={() => run("/api/workers/backtest", { code: codeForChecks, idea }, "Backtest")} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-900 text-white hover:bg-zinc-800">
                 Backtest estimate
               </Button>
+            </div>
+            <div className="mt-4 grid gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-3 text-xs leading-5 text-zinc-400">
+              <p><span className="font-semibold text-amber-200">Fix code</span> creates a corrected EA draft and shows the replacement below.</p>
+              <p><span className="font-semibold text-cyan-200">Compile check</span> checks the current EA draft below. Without a MetaEditor worker, it is an honest static pre-check, not a real .ex5 build.</p>
+              <p><span className="font-semibold text-emerald-200">Backtest estimate</span> estimates readiness from the current EA draft. It does not replace the code and it is not a real MT5 Strategy Tester report.</p>
             </div>
             <div className="mt-5 rounded-lg border border-white/10 bg-[#101112] p-4">
               <p className="text-sm font-semibold text-white">Output</p>
               {activeAction ? (
-                <p className="mt-3 text-sm text-cyan-200">Running {activeAction}. Waiting for API response...</p>
+                <p className="mt-3 text-sm text-cyan-200">Running {activeAction}. The EA draft below is preserved while the check runs.</p>
               ) : result?.error ? (
                 <p className="mt-3 text-sm text-rose-300">{result.error}</p>
               ) : (
@@ -922,11 +977,27 @@ export default function Home() {
                   {result?.issues && <p>Issues: {result.issues.join(" | ")}</p>}
                   {result?.fixes && <p>Fixes: {result.fixes.join(" | ")}</p>}
                   {result?.params && <p>Params: {Object.entries(result.params).map(([k, v]) => `${k}: ${v}`).join(" | ")}</p>}
-                  <pre className="max-h-56 overflow-auto rounded-lg border border-white/10 bg-black/30 p-3 font-mono text-xs text-zinc-400">
-                    {result?.mql5Code || result?.fixedCode || "// Generated code appears here."}
-                  </pre>
                 </div>
               )}
+              <div className="mt-4 rounded-lg border border-white/10 bg-black/25 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300">Current EA draft</p>
+                  <p className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-400">{currentCodeSource}</p>
+                </div>
+                {result?.lastActionLabel && (
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Last action: {result.lastActionLabel}. Compile check and backtest estimate use this preserved draft as input.
+                  </p>
+                )}
+                {result?.checkedCode && (result.lastAction === "/api/workers/compile" || result.lastAction === "/api/workers/backtest") && (
+                  <p className="mt-2 text-xs text-cyan-300">
+                    Checked input: this action reviewed the EA draft shown here; it did not erase or silently rewrite it.
+                  </p>
+                )}
+                <pre className="mt-3 max-h-64 overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-xs text-zinc-400">
+                  {currentEaCode || "// Generated or fixed EA code appears here. Compile check and backtest estimate will not replace it."}
+                </pre>
+              </div>
             </div>
           </section>
 
