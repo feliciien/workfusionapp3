@@ -30,6 +30,12 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function assertLeadCaptureForm(html, label) {
+  assert(html.includes("workfusion-primary-cta"), `${label} missing primary opt-in CTA`);
+  assert(html.includes("developer@example.com"), `${label} missing email capture input`);
+  assert(html.includes("I agree to receive Workfusion EA builder updates"), `${label} missing consent text`);
+}
+
 function assertCompleteMql(code, label) {
   const source = String(code || "");
   assert(source.length > 5000, `${label} is too short to be a complete EA`);
@@ -98,6 +104,11 @@ const resourcePages = [
   "/resources/fix-undeclared-identifier-mql5-ea",
   "/resources/fix-invalid-stops-mt5-ea",
   "/resources/mql5-ctrade-include-trade-object-setup",
+  "/resources/fix-mql5-copybuffer-indicator-handle",
+  "/resources/fix-mql5-history-deal-functions",
+  "/resources/fix-mql5-invalid-volume-lot-step",
+  "/resources/fix-mql5-unsupported-filling-mode",
+  "/resources/fix-mql5-array-out-of-range-copybuffer",
   "/resources/mql5-oninit-ontick-ea-skeleton",
   "/resources/ea-compiles-but-does-not-trade-mt5",
   "/resources/turn-strategy-idea-into-mt5-ea-spec",
@@ -119,6 +130,7 @@ const resourcePages = [
   "/resources/expert-advisor-state-machine-design",
   "/resources/mql5-logging-diagnostics-ea",
   "/resources/backtest-failure-triage-mt5-ea",
+  "/resources/avoid-overfitting-mt5-ea-backtests",
   "/resources/expert-advisor-handoff-checklist",
   "/resources/mql5-code-review-before-backtesting",
 ];
@@ -158,7 +170,7 @@ await check("SEO landing pages render", async () => {
     const html = await response.text();
     assert(response.ok, `${path} status ${response.status}`);
     assert(html.includes(phrase), `${path} missing ${phrase}`);
-    assert(html.includes("Join the EA builder list"), `${path} missing opt-in form`);
+    assertLeadCaptureForm(html, path);
   }
   return `${seoPages.length} SEO pages`;
 });
@@ -168,13 +180,13 @@ await check("resource hub and guides render", async () => {
   const hubHtml = await hub.text();
   assert(hub.ok, `resources status ${hub.status}`);
   assert(hubHtml.includes("Practical MT4/MT5 guides"), "resources hub missing hero");
-  assert(hubHtml.includes("26 guides"), "resources hub missing guide count");
+  assert(/\b\d+ guides\b/u.test(hubHtml), "resources hub missing guide count");
   for (const path of resourcePages) {
     const response = await fetch(`${baseUrl}${path}`);
     const html = await response.text();
     assert(response.ok, `${path} status ${response.status}`);
     assert(html.includes("Implementation checklist"), `${path} missing checklist`);
-    assert(html.includes("Join the EA builder list"), `${path} missing opt-in form`);
+    assertLeadCaptureForm(html, path);
   }
   return `${resourcePages.length} resource guides`;
 });
