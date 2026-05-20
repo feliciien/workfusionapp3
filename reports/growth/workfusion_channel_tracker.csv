@@ -7,3 +7,7 @@ date,channel,source_tag,target_persona,asset_or_thread,action,cta,owner,status,r
 2026-05-20,YouTube,youtube_demo,trading_automation_viewer,Short demo script,Publish 30-60s workflow video,Try free workflow,Felicien,planned,,
 2026-05-20,Partner,partner_mql_freelancer,mql_freelancer,Freelancer outreach,Ask for workflow feedback,Partner test,Felicien,planned,,
 2026-05-20,Support,support_inbound,active_user,Open support inbox,Reply and tag blocker,Fix issue or request reproduction,Felicien,planned,,
+2026-05-20,MQL5 Forum,mql5_codebase_forum,mq5_developer,EA stop trading because of Invalid stops Why,Drafted no-link technical reply about Bid Ask spread stop level freeze level and logging,No link,Felicien,drafted,ready_to_post,Invalid stops XAUUSD support opportunity
+2026-05-20,Forex Factory,forexfactory_platform_tech,ea_builder,evaluation EAs by magic number MT5,Drafted no-link technical reply about grouping MT5 deals by DEAL_MAGIC,No link,Felicien,drafted,ready_to_post,Magic-number evaluation support opportunity
+2026-05-20,MQL5 Forum,mql5_codebase_forum,mq5_developer,Persistent MQL5 compilation errors HistoryDeals missing,Drafted technical reply with Workfusion compiler fixer link only after useful explanation,MQL5 compiler fixer,Felicien,drafted,ready_to_post,Compiler-fixer acquisition opportunity
+2026-05-20,LinkedIn,linkedin_build_note,mql_builder_network,Founder build note,Drafted post summarizing today's EA debugging patterns,Try Workfusion,Felicien,drafted,ready_to_post,Post manually from Felicien account

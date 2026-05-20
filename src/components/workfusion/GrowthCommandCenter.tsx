@@ -25,6 +25,19 @@ type GrowthSnapshot = {
   segments: Array<{ persona: string; count: number }>;
   sources: Array<{ source: string; count: number }>;
   pages: Array<{ path: string; visits: number }>;
+  channelTracker: Array<{
+    date: string;
+    channel: string;
+    sourceTag: string;
+    targetPersona: string;
+    assetOrThread: string;
+    action: string;
+    cta: string;
+    owner: string;
+    status: string;
+    result: string;
+    notes: string;
+  }>;
   tasks: Array<{ priority: string; title: string; detail: string }>;
   outreachDrafts: Array<{ channel: string; title: string; body: string }>;
 };
@@ -229,6 +242,21 @@ export function GrowthCommandCenter() {
             </section>
 
             <section className="mt-8 grid gap-5 lg:grid-cols-2">
+              <Panel title="Acquisition tracker">
+                <div className="space-y-3">
+                  {snapshot.channelTracker.map((item) => (
+                    <div key={`${item.date}-${item.channel}-${item.assetOrThread}`} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">{item.channel}</p>
+                        <p className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{item.status}</p>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-white">{item.assetOrThread}</p>
+                      <p className="mt-2 text-sm leading-6 text-zinc-400">{item.action}</p>
+                      <p className="mt-2 text-xs text-zinc-500">{item.sourceTag} | {item.result || "pending"}</p>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
               <Panel title="Outreach drafts">
                 <div className="space-y-3">
                   {snapshot.outreachDrafts.map((draft) => (

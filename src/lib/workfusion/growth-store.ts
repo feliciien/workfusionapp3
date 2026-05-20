@@ -1,3 +1,5 @@
+import { readFile } from "fs/promises";
+import { join } from "path";
 import { databaseConfigured, ensureWorkfusionSchema, query } from "./database";
 import { resourceGuideSlugs } from "./resource-guides";
 
@@ -32,8 +34,23 @@ export type GrowthSnapshot = {
   segments: Array<{ persona: string; count: number }>;
   sources: Array<{ source: string; count: number }>;
   pages: Array<{ path: string; visits: number }>;
+  channelTracker: GrowthChannelTrackerRow[];
   tasks: Array<{ priority: string; title: string; detail: string }>;
   outreachDrafts: Array<{ channel: string; title: string; body: string }>;
+};
+
+export type GrowthChannelTrackerRow = {
+  date: string;
+  channel: string;
+  sourceTag: string;
+  targetPersona: string;
+  assetOrThread: string;
+  action: string;
+  cta: string;
+  owner: string;
+  status: string;
+  result: string;
+  notes: string;
 };
 
 type LeadRow = {
@@ -141,6 +158,7 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     segments: (segments?.rows || []).map((row) => ({ persona: row.persona || "unknown", count: Number(row.count || 0) })),
     sources: (sources?.rows || []).map((row) => ({ source: row.source || "unknown", count: Number(row.count || 0) })),
     pages: (pages?.rows || []).map((row) => ({ path: row.path, visits: Number(row.visits || 0) })),
+    channelTracker: await loadChannelTracker(),
     tasks: buildTasks(countMap),
     outreachDrafts: buildOutreachDrafts(),
   };
@@ -198,6 +216,33 @@ function normalizeCounts(row: Record<string, string>) {
     acc[key] = Number(value || 0);
     return acc;
   }, {});
+}
+
+async function loadChannelTracker(): Promise<GrowthChannelTrackerRow[]> {
+  try {
+    const text = await readFile(join(process.cwd(), "reports/growth/workfusion_channel_tracker.csv"), "utf8");
+    const [, ...rows] = text.trim().split(/\r?\n/);
+    return rows
+      .map((row) => row.split(","))
+      .filter((columns) => columns.length >= 11)
+      .slice(-20)
+      .reverse()
+      .map((columns) => ({
+        date: columns[0] || "",
+        channel: columns[1] || "",
+        sourceTag: columns[2] || "",
+        targetPersona: columns[3] || "",
+        assetOrThread: columns[4] || "",
+        action: columns[5] || "",
+        cta: columns[6] || "",
+        owner: columns[7] || "",
+        status: columns[8] || "",
+        result: columns[9] || "",
+        notes: columns.slice(10).join(",") || "",
+      }));
+  } catch {
+    return [];
+  }
 }
 
 function buildTasks(counts: Record<string, number>) {
