@@ -75,6 +75,22 @@ export function compileCheck(code: string): WorkerCheck {
     diagnostics.push("History/deal access issue detected. Use HistorySelect, HistoryDealGetTicket, and HistoryDealGetInteger/Double/String instead of duplicate HistoryDeals includes or MT4-style helpers.");
     score -= 12;
   }
+  if (issueKinds.includes("invalid_volume")) {
+    diagnostics.push("Invalid volume risk detected. Normalize lots with SYMBOL_VOLUME_MIN, SYMBOL_VOLUME_MAX, SYMBOL_VOLUME_STEP, and reject 0.00 or off-step volumes.");
+    score -= 16;
+  }
+  if (issueKinds.includes("invalid_filling")) {
+    diagnostics.push("Unsupported filling-mode risk detected. Use SetTypeFillingBySymbol or SYMBOL_FILLING_MODE instead of hard-coded fill policies.");
+    score -= 14;
+  }
+  if (issueKinds.includes("array_out_of_range")) {
+    diagnostics.push("Array out-of-range risk detected. Check CopyBuffer return count and ArraySize before reading indicator buffers.");
+    score -= 14;
+  }
+  if (issueKinds.includes("backtest_overfit")) {
+    diagnostics.push("Backtest credibility risk detected. Require walk-forward/out-of-sample evidence, trade-count adequacy, and spread/slippage sensitivity.");
+    score -= 12;
+  }
 
   if (diagnostics.length === 0) diagnostics.push("Static compile pre-check passed. Run MetaEditor before live use.");
 
@@ -87,22 +103,26 @@ export function compileCheck(code: string): WorkerCheck {
 
 export function backtestEstimate(code: string, idea: string) {
   const compile = compileCheck(code);
+  const issueKinds = detectMqlIssueKinds({ code: `${code}\n${idea}` });
   const text = `${code} ${idea}`.toLowerCase();
   const trades = text.includes("session") || text.includes("london") ? 186 : 92;
-  const profitFactor = compile.score >= 82 ? 1.34 : compile.score >= 60 ? 1.08 : 0.84;
-  const maxDrawdown = compile.score >= 82 ? 4.8 : compile.score >= 60 ? 7.6 : 13.2;
+  const credibilityPenalty = issueKinds.includes("backtest_overfit") ? 0.18 : 0;
+  const profitFactor = compile.score >= 82 ? 1.34 - credibilityPenalty : compile.score >= 60 ? 1.08 - credibilityPenalty : 0.84;
+  const maxDrawdown = compile.score >= 82 ? 4.8 + credibilityPenalty * 20 : compile.score >= 60 ? 7.6 + credibilityPenalty * 20 : 13.2;
   const warnings = [
     "This is an estimator, not a real MT5 Strategy Tester result.",
     "Promotion requires exported MT4/MT5 backtest reports and forward demo validation.",
+    ...(issueKinds.includes("backtest_overfit") ? ["Overfitting/backtest credibility language detected. Require walk-forward, out-of-sample, and parameter-sensitivity evidence."] : []),
   ];
 
   return {
     status: compile.status,
     trades,
-    profitFactor,
-    maxDrawdown,
+    profitFactor: Number(profitFactor.toFixed(2)),
+    maxDrawdown: Number(maxDrawdown.toFixed(1)),
     fundingReadiness: Math.min(98, Math.max(1, Math.round(compile.score * 0.9))),
     warnings,
     diagnostics: compile.diagnostics,
+    resourceSlugs: issueKinds.includes("backtest_overfit") ? ["avoid-overfitting-mt5-ea-backtests"] : [],
   };
 }

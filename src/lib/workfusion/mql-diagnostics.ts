@@ -4,7 +4,11 @@ export type MqlIssueKind =
   | "mt4_to_mql5_migration"
   | "indicator_handle_copybuffer"
   | "history_deals"
-  | "no_trade_path";
+  | "no_trade_path"
+  | "invalid_volume"
+  | "invalid_filling"
+  | "array_out_of_range"
+  | "backtest_overfit";
 
 export type MqlIssueAnalysis = {
   kinds: MqlIssueKind[];
@@ -103,6 +107,58 @@ export function analyzeMqlIssues(input: MqlIssueInput): MqlIssueAnalysis {
     resourceSlugs.push("ea-compiles-but-does-not-trade-mt5");
   }
 
+  if (kinds.includes("invalid_volume")) {
+    issues.push(
+      "The requested lot size is not valid for the broker symbol.",
+      "Common causes are 0.00 lots, below-minimum lots, above-maximum lots, or a volume that is not aligned to SYMBOL_VOLUME_STEP.",
+    );
+    fixes.push(
+      "Read SYMBOL_VOLUME_MIN, SYMBOL_VOLUME_MAX, SYMBOL_VOLUME_STEP, and SYMBOL_VOLUME_LIMIT before sending the order.",
+      "Normalize calculated lots to the broker lot step, then reject impossible volumes instead of forcing a trade.",
+      "Log raw lot, normalized lot, min/max/step, margin check result, and trade retcode.",
+    );
+    resourceSlugs.push("fix-mql5-invalid-volume-lot-step");
+  }
+
+  if (kinds.includes("invalid_filling")) {
+    issues.push(
+      "The symbol or broker account rejected the order filling policy.",
+      "Hard-coding ORDER_FILLING_FOK, ORDER_FILLING_IOC, or ORDER_FILLING_RETURN can fail when the symbol has different allowed filling flags.",
+    );
+    fixes.push(
+      "Use trade.SetTypeFillingBySymbol(_Symbol) when using CTrade.",
+      "For MqlTradeRequest, read SYMBOL_FILLING_MODE and select an allowed filling policy before OrderSend.",
+      "Log SYMBOL_FILLING_MODE, selected filling type, execution mode, retcode, and broker comment.",
+    );
+    resourceSlugs.push("fix-mql5-unsupported-filling-mode");
+  }
+
+  if (kinds.includes("array_out_of_range")) {
+    issues.push(
+      "The EA is reading an array index that may not exist at runtime.",
+      "With CopyBuffer, checking only for -1 is not enough. The function can return fewer bars than requested.",
+    );
+    fixes.push(
+      "Check that CopyBuffer returned exactly the number of values you plan to read.",
+      "Use ArraySize before reading array indexes, and return early when data is not ready.",
+      "Log copied count, requested count, buffer index, _LastError, and the bar index being read.",
+    );
+    resourceSlugs.push("fix-mql5-array-out-of-range-copybuffer");
+  }
+
+  if (kinds.includes("backtest_overfit")) {
+    issues.push(
+      "The workflow shows a backtest or optimization credibility risk rather than a simple compiler issue.",
+      "Common causes are overfitting, too few trades, one favorable segment carrying the result, live/tester mismatch, or missing spread/slippage assumptions.",
+    );
+    fixes.push(
+      "Require out-of-sample or walk-forward segments before treating a result as evidence.",
+      "Track trade count, year-by-year contribution, max drawdown, spread/slippage sensitivity, and parameter stability.",
+      "Keep report, set file, symbol, timeframe, data source, and EA version together for reproducibility.",
+    );
+    resourceSlugs.push("avoid-overfitting-mt5-ea-backtests");
+  }
+
   const summary = kinds.length
     ? `Detected ${kinds.map((kind) => kind.replaceAll("_", " ")).join(", ")} pattern(s) in the MQL workflow.`
     : "No known high-frequency MQL5 issue pattern was detected.";
@@ -173,6 +229,30 @@ export function detectMqlIssueKinds(input: { code: string; errors?: string; plat
 
   if (/does not trade|no trades|zero trades|not opening trades|strategy tester.*0/iu.test(lower)) {
     kinds.push("no_trade_path");
+  }
+
+  if (/invalid volume|retcode\s*=?\s*10014|trade_retcode_invalid_volume|errorcode:\s*10014|0\.00\s+lots?/iu.test(text)) {
+    kinds.push("invalid_volume");
+  }
+
+  const hardCodedFilling = /\b(ORDER_FILLING_FOK|ORDER_FILLING_IOC|ORDER_FILLING_RETURN)\b/u.test(source);
+  const hasFillingGuard = /SetTypeFillingBySymbol|SYMBOL_FILLING_MODE|RequestTypeFilling|type_filling/u.test(source);
+  if (/unsupported filling|invalid fill|retcode\s*=?\s*10030|trade_retcode_invalid_fill/iu.test(text) || (hardCodedFilling && !hasFillingGuard)) {
+    kinds.push("invalid_filling");
+  }
+
+  const hasUnsafeCopyBufferRead =
+    /CopyBuffer\s*\(/u.test(source) &&
+    /\b[A-Za-z_]\w*\s*\[\s*(?:[1-9]\d*|barshift|shift|index|i)\s*\]/u.test(source) &&
+    !/CopyBuffer\s*\([^;]+?\)\s*(?:==|!=|<|>|<=|>=)\s*\d|ArraySize\s*\(|copied\w*\s*(?:==|!=|<|>|<=|>=)/iu.test(source);
+  if (/array out of range/iu.test(text) || hasUnsafeCopyBufferRead) {
+    kinds.push("array_out_of_range");
+  }
+
+  if (
+    /overfit|curve.?fit|walk.?forward|out.?of.?sample|look.?ahead|data leakage|modeling quality|every tick|99\.?9?%|backtest.*great|great.*backtest|tester.*live|live.*tester|strategy tester.*live/iu.test(text)
+  ) {
+    kinds.push("backtest_overfit");
   }
 
   return unique(kinds);

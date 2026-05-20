@@ -24,6 +24,8 @@ type TradingResult = {
   status?: string;
   score?: number;
   diagnostics?: string[];
+  warnings?: string[];
+  resourceSlugs?: string[];
   compiled?: boolean;
   compiler?: {
     mode?: string;
@@ -149,7 +151,7 @@ const conversionProof = [
 
 const seoLinks = [
   ["/updates", "Build Notes", "Public Workfusion notes on EA debugging patterns, compiler issues, and product workflow improvements."],
-  ["/resources", "EA Builder Resource Hub", "26 practical guides for compiler fixes, EA generation, debugging, prop risk, and code review."],
+  ["/resources", "EA Builder Resource Hub", "Practical guides for compiler fixes, EA generation, debugging, prop risk, and code review."],
   ["/mql5-compiler-fixer", "MQL5 Compiler Fixer", "Fix MetaEditor errors and produce a complete corrected EA draft."],
   ["/mt5-ea-generator", "MT5 EA Generator", "Turn strategy ideas into structured MQL5 Expert Advisor drafts."],
   ["/mt4-ea-debugger", "MT4 EA Debugger", "Review and clean MQL4 EA code before manual compile testing."],
@@ -161,6 +163,33 @@ const workflowSteps = [
   ["1", "Describe the EA", "Market, platform, prop preset, risk cap, entry style, and exit rules."],
   ["2", "Generate or debug", "Create MQL, fix compiler errors, and inspect risk/readiness scores."],
   ["3", "Compile and package", "Run the compiler worker when configured, save projects, and download outputs."],
+];
+
+const commonMqlProblems = [
+  {
+    title: "Invalid volume 10014",
+    body: "Lot size is 0.00, below min, above max, or not aligned to SYMBOL_VOLUME_STEP.",
+    code: "#property strict\n#include <Trade/Trade.mqh>\nCTrade trade;\nvoid OnTick(){ double lots=0.00; trade.Buy(lots,_Symbol); }",
+    errors: "order_send failed, retcode=10014\nTRADE_RETCODE_INVALID_VOLUME\nXAUUSD Buy 0.00 lots",
+  },
+  {
+    title: "Unsupported filling 10030",
+    body: "ORDER_FILLING_FOK/IOC/RETURN is hard-coded but the symbol does not support it.",
+    code: "#property strict\n#include <Trade/Trade.mqh>\nCTrade trade;\nint OnInit(){ trade.SetTypeFilling(ORDER_FILLING_FOK); return(INIT_SUCCEEDED); }\nvoid OnTick(){ trade.Sell(0.10,_Symbol); }",
+    errors: "failed market sell [Unsupported filling mode]\nretcode=10030\nTRADE_RETCODE_INVALID_FILL",
+  },
+  {
+    title: "CopyBuffer array range",
+    body: "The EA reads buffer[1] or buffer[2] without confirming enough indicator data was copied.",
+    code: "#property strict\nint maHandle;\nint OnInit(){ maHandle=iMA(_Symbol,PERIOD_CURRENT,20,0,MODE_EMA,PRICE_CLOSE); return(INIT_SUCCEEDED); }\nvoid OnTick(){ double ma[]; CopyBuffer(maHandle,0,0,3,ma); Print(ma[2]); }",
+    errors: "array out of range in 'Expert.mq5'\nCopyBuffer returned fewer values than requested",
+  },
+  {
+    title: "Overfit backtest risk",
+    body: "Strong optimization language but no walk-forward, OOS split, spread sensitivity, or segment stability.",
+    code: "#property strict\n// Optimized EA shows a great backtest with 99% modeling quality but no walk-forward or out-of-sample evidence.\nvoid OnTick(){}",
+    errors: "Backtest looks great in Strategy Tester but live/demo behavior is different. Possible overfit / curve fit / no walk-forward evidence.",
+  },
 ];
 
 function getGuestId() {
@@ -490,6 +519,17 @@ export default function Home() {
 
   function notify(next: Toast) {
     setToast(next);
+  }
+
+  function loadProblemTemplate(template: (typeof commonMqlProblems)[number]) {
+    setPlatform("mt5");
+    setDebugCode(template.code);
+    setDebugErrors(template.errors);
+    notify({
+      tone: "info",
+      title: template.title,
+      body: "Loaded a real MQ5 problem pattern. Run Fix code to get the diagnostic and linked tutorial.",
+    });
   }
 
   async function run(endpoint: string, body: Record<string, unknown>, label: string) {
@@ -1187,6 +1227,30 @@ export default function Home() {
               <MetricCard label="Compliance" value={result?.compliance ?? 91} />
               <MetricCard label="Readiness" value={result?.fundingReadiness ?? 88} />
             </div>
+            <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-sm font-semibold text-white">Real MQ5 problem tests</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500">
+                    Load a common EA developer issue, then run Fix code to see the diagnosis and tutorial link.
+                  </p>
+                </div>
+                <span className="w-fit rounded-md border border-emerald-300/20 px-2 py-1 text-xs text-emerald-200">problem solving</span>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {commonMqlProblems.map((template) => (
+                  <button
+                    key={template.title}
+                    type="button"
+                    onClick={() => loadProblemTemplate(template)}
+                    className="rounded-lg border border-white/10 bg-[#101112] p-3 text-left hover:border-emerald-300/50"
+                  >
+                    <span className="text-sm font-semibold text-zinc-100">{template.title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-zinc-500">{template.body}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <div>
                 <label className="text-sm text-zinc-400">EA code to debug</label>
@@ -1260,8 +1324,25 @@ export default function Home() {
                     </div>
                   )}
                   {result?.diagnostics && <p>Diagnostics: {result.diagnostics.join(" | ")}</p>}
+                  {result?.warnings && <p>Warnings: {result.warnings.join(" | ")}</p>}
                   {result?.issues && <p>Issues: {result.issues.join(" | ")}</p>}
                   {result?.fixes && <p>Fixes: {result.fixes.join(" | ")}</p>}
+                  {result?.resourceSlugs && result.resourceSlugs.length > 0 && (
+                    <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200">Tutorials for this issue</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {result.resourceSlugs.map((slug) => (
+                          <a
+                            key={slug}
+                            href={`/resources/${slug}`}
+                            className="rounded-md border border-emerald-300/20 bg-[#101112] px-3 py-2 text-xs font-semibold text-emerald-100 hover:border-emerald-300"
+                          >
+                            {slug.replaceAll("-", " ")}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {result?.params && <p>Params: {Object.entries(result.params).map(([k, v]) => `${k}: ${v}`).join(" | ")}</p>}
                 </div>
               )}
