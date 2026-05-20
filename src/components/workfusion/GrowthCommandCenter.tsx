@@ -244,8 +244,8 @@ export function GrowthCommandCenter() {
             <section className="mt-8 grid gap-5 lg:grid-cols-2">
               <Panel title="Acquisition tracker">
                 <div className="space-y-3">
-                  {snapshot.channelTracker.map((item) => (
-                    <div key={`${item.date}-${item.channel}-${item.assetOrThread}`} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                  {snapshot.channelTracker.map((item, index) => (
+                    <div key={`${item.date}-${item.channel}-${item.sourceTag}-${item.status}-${item.result}-${index}`} className="rounded-lg border border-white/10 bg-[#101112] p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-300">{item.channel}</p>
                         <p className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{item.status}</p>
