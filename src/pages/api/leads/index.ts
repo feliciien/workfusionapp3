@@ -18,6 +18,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const page = String(req.body?.page || req.headers.referer || "/").trim().slice(0, 500);
   const referrer = String(req.body?.referrer || req.headers.referer || "").trim().slice(0, 500);
   const url = String(req.body?.url || req.headers.referer || "").trim().slice(0, 800);
+  const activationFeature = String(req.body?.activationFeature || "").trim().slice(0, 80);
+  const activationAction = String(req.body?.activationAction || "").trim().slice(0, 120);
+  const reply = String(req.body?.reply || "").trim().slice(0, 1200);
+  const isActivatedFollowup = source === "activated_user_followup";
   const attribution = attributionFrom({
     referrer,
     url,
@@ -42,12 +46,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     consent,
     consentText: CONSENT_TEXT,
     userAgent: req.headers["user-agent"],
+    stage: isActivatedFollowup ? "researching" : "new",
+    score: isActivatedFollowup ? 70 : 0,
+    notes: isActivatedFollowup
+      ? [
+        "Activated-user follow-up requested.",
+        activationFeature ? `Feature: ${activationFeature}.` : "",
+        activationAction ? `Action: ${activationAction}.` : "",
+        reply ? `Reply: ${reply}` : "",
+      ].filter(Boolean).join(" ")
+      : "",
     metadata: {
       page,
       acquisition: "opt_in",
       intent,
       cta,
       leadStatus,
+      activationFeature,
+      activationAction,
+      reply,
+      followupQuestion: isActivatedFollowup ? "Want a free workflow review or help with the next compiler error?" : "",
       sourceTag: attribution.sourceTag,
       conversionPath: attribution.conversionPath,
       referrer,
@@ -65,6 +83,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       intent,
       cta,
       leadStatus,
+      activationFeature,
+      activationAction,
+      hasReply: Boolean(reply),
       page,
       referrer,
       url,

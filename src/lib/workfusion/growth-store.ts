@@ -131,7 +131,9 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
       (select count(*) from wf_marketing_leads where stage = 'customer')::text as customers,
       (select count(*) from wf_support_messages where status = 'open')::text as open_support,
       (select count(*) from wf_page_events where created_at > now() - interval '7 days')::text as visits_7d,
-      (select count(*) from wf_usage_events where created_at > now() - interval '7 days')::text as usage_7d
+      (select count(*) from wf_usage_events where created_at > now() - interval '7 days')::text as usage_7d,
+      (select count(*) from wf_usage_events where created_at > now() - interval '30 days' and event_type in ('generate_completed', 'debug_completed', 'download_completed', 'first_useful_output'))::text as activated_30d,
+      (select count(*) from wf_marketing_leads where created_at > now() - interval '30 days' and source = 'activated_user_followup')::text as activated_followup_leads_30d
   `);
 
   const leads = await query<LeadRow>(`
@@ -537,6 +539,8 @@ async function loadManualPostQueue(): Promise<GrowthManualPost[]> {
 }
 
 function buildTasks(counts: Record<string, number>) {
+  const activatedUsers = counts.activated_30d || 0;
+  const activatedFollowups = counts.activated_followup_leads_30d || 0;
   const tasks = [
     {
       priority: "P0",
@@ -562,6 +566,13 @@ function buildTasks(counts: Record<string, number>) {
       priority: "P1",
       title: "Ask one MQL freelancer for workflow feedback",
       detail: "Send one manual partner message to a relevant MQL freelancer. Ask for feedback, not promotion, and keep Workfusion separate from BoltIQ.",
+    },
+    {
+      priority: "P2",
+      title: "Follow up activated users",
+      detail: activatedUsers
+        ? `${activatedFollowups}/${activatedUsers} activated users converted into opt-in follow-up leads.`
+        : `${activatedFollowups} activated follow-up lead(s); waiting for generate/debug/download completion events.`,
     },
     {
       priority: "P2",

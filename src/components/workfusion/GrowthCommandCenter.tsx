@@ -120,6 +120,11 @@ const stages = ["new", "researching", "contacted", "trial", "customer", "nurture
 const supportStatuses = ["open", "replied", "blocked", "closed"];
 const blockerTags = ["none", "compiler_error", "generated_code_quality", "backtest_confusion", "billing", "login", "download", "mobile", "missing_feature", "ux_confusion"];
 
+function conversionRate(numerator = 0, denominator = 0) {
+  if (!denominator) return 0;
+  return Math.round((numerator / denominator) * 1000) / 10;
+}
+
 export function GrowthCommandCenter() {
   const [token, setToken] = useState("");
   const [snapshot, setSnapshot] = useState<GrowthSnapshot | null>(null);
@@ -339,11 +344,12 @@ export function GrowthCommandCenter() {
 
         {snapshot && (
           <>
-            <section className="mt-8 grid gap-4 md:grid-cols-4">
+            <section className="mt-8 grid gap-4 md:grid-cols-5">
               <Metric label="Leads" value={snapshot.counts.leads || 0} />
               <Metric label="New" value={snapshot.counts.new_leads || 0} />
               <Metric label="Trials" value={snapshot.counts.trials || 0} />
               <Metric label="7d visits" value={snapshot.counts.visits_7d || 0} />
+              <Metric label="Activated->Lead" value={`${conversionRate(snapshot.counts.activated_followup_leads_30d || 0, snapshot.counts.activated_30d || 0)}%`} />
             </section>
 
             {intelligence && (
@@ -720,7 +726,7 @@ export function GrowthCommandCenter() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-lg border border-white/10 bg-zinc-950 p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">{label}</p>

@@ -220,6 +220,20 @@ function usageEventFor(endpoint: string, label: string) {
   return { eventType: "workflow_action_started", feature: label.toLowerCase().replace(/\s+/gu, "_") };
 }
 
+function activatedFollowupFor(result?: TradingResult | null) {
+  if (!result || result.error) return null;
+  if (result.lastAction === "/api/trading/generate") {
+    return { feature: "generate", action: result.lastActionLabel || "Generate", intent: "ea_draft" };
+  }
+  if (result.lastAction === "/api/trading/debug") {
+    return { feature: "debug", action: result.lastActionLabel || "Debug", intent: "compiler_error" };
+  }
+  if (result.lastAction === "/api/trading/download") {
+    return { feature: "download", action: result.lastActionLabel || "Download", intent: "ea_draft" };
+  }
+  return null;
+}
+
 async function trackUsageEvent(eventType: string, feature: string, metadata: Record<string, unknown> = {}) {
   try {
     const page = window.location.pathname;
@@ -461,6 +475,10 @@ export default function Home() {
   const [leadIntent, setLeadIntent] = useState("compiler_error");
   const [leadConsent, setLeadConsent] = useState(false);
   const [leadStatus, setLeadStatus] = useState<FormStatus>({ status: "idle", message: "Join only with explicit opt-in. No scraped list, no purchased database." });
+  const [followupEmail, setFollowupEmail] = useState("");
+  const [followupReply, setFollowupReply] = useState("");
+  const [followupConsent, setFollowupConsent] = useState(false);
+  const [followupStatus, setFollowupStatus] = useState<FormStatus>({ status: "idle", message: "Optional follow-up only. No spam, no broker access, no trading promises." });
 
   const payload = useMemo(() => ({ idea, market, preset, platform, propMode }), [idea, market, preset, platform, propMode]);
   const limits = result?.remaining || account?.limits || { generate: 3, optimize: 1, debrief: 1, debug: 1, download: 1 };
@@ -468,6 +486,7 @@ export default function Home() {
   const currentEaCode = pickEaCode(result, debugCode);
   const codeForChecks = currentEaCode;
   const currentCodeSource = codeSourceLabel(result, debugCode);
+  const activatedFollowup = activatedFollowupFor(result);
 
   function notify(next: Toast) {
     setToast(next);
@@ -817,6 +836,75 @@ export default function Home() {
     } catch {
       setLeadStatus({ status: "error", message: "Network request failed while saving opt-in." });
       notify({ tone: "error", title: "Opt-in failed", body: "Network request failed." });
+    }
+  }
+
+  async function submitActivatedFollowup() {
+    if (!activatedFollowup) return;
+
+    const emailToUse = (followupEmail || email || account?.user?.email || "").trim();
+    if (!looksLikeEmail(emailToUse)) {
+      setFollowupStatus({ status: "error", message: "Enter an email so I can follow up manually." });
+      return;
+    }
+    if (!followupConsent) {
+      setFollowupStatus({ status: "error", message: "Please opt in before requesting a workflow review." });
+      return;
+    }
+
+    setFollowupStatus({ status: "loading", message: "Saving activated-user follow-up in CRM." });
+    try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent: activatedFollowup.intent,
+      });
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          email: emailToUse,
+          persona: leadPersona,
+          source: "activated_user_followup",
+          consent: true,
+          intent: activatedFollowup.intent,
+          cta: "activated_user_followup_question",
+          leadStatus: "activated_followup",
+          page: typeof window !== "undefined" ? window.location.pathname : "/",
+          referrer: typeof window !== "undefined" ? document.referrer : "",
+          url: typeof window !== "undefined" ? window.location.href : "",
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+          activationFeature: activatedFollowup.feature,
+          activationAction: activatedFollowup.action,
+          reply: followupReply || "Requested free workflow review or next compiler-error help.",
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        const message = data.message || data.error || "Follow-up capture failed.";
+        setFollowupStatus({ status: "error", message });
+        notify({ tone: "error", title: "Follow-up failed", body: message });
+        return;
+      }
+
+      setFollowupStatus({
+        status: "success",
+        message: "Saved in CRM. This user is tagged for manual workflow review.",
+      });
+      setFollowupReply("");
+      trackUsageEvent("activated_user_to_lead_conversion", "activated_user_followup", {
+        activationFeature: activatedFollowup.feature,
+        activationAction: activatedFollowup.action,
+        intent: activatedFollowup.intent,
+        source: "activated_user_followup",
+        hasReply: Boolean(followupReply.trim()),
+      }).catch(() => undefined);
+      notify({ tone: "success", title: "Follow-up saved", body: "The request is now in the CRM." });
+    } catch {
+      setFollowupStatus({ status: "error", message: "Network request failed while saving follow-up." });
+      notify({ tone: "error", title: "Follow-up failed", body: "Network request failed." });
     }
   }
 
@@ -1194,6 +1282,45 @@ export default function Home() {
                   {currentEaCode || "// Generated or fixed EA code appears here. Compile check and backtest estimate will not replace it."}
                 </pre>
               </div>
+              {activatedFollowup && (
+                <div className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4">
+                  <p className="text-sm font-semibold text-emerald-100">Want a free workflow review or help with the next compiler error?</p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-50/90">
+                    Optional. This tags your request in the CRM after {activatedFollowup.action.toLowerCase()} so I can follow up manually with the next useful step.
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
+                    <input
+                      value={followupEmail}
+                      onChange={(event) => setFollowupEmail(event.target.value)}
+                      placeholder={account?.user?.email || email || "developer@example.com"}
+                      className="w-full rounded-lg border border-emerald-300/20 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
+                    />
+                    <input
+                      value={followupReply}
+                      onChange={(event) => setFollowupReply(event.target.value)}
+                      placeholder="What should I review next? Compiler error, EA brief, download, or risk check."
+                      className="w-full rounded-lg border border-emerald-300/20 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
+                    />
+                  </div>
+                  <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-emerald-50/80">
+                    <input
+                      checked={followupConsent}
+                      onChange={(event) => setFollowupConsent(event.target.checked)}
+                      type="checkbox"
+                      className="mt-1 accent-emerald-300"
+                    />
+                    I agree to receive manual Workfusion follow-up about this EA workflow. No spam, no broker access, no trading credentials, no profit promises.
+                  </label>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <p className={followupStatus.status === "error" ? "text-xs text-rose-300" : followupStatus.status === "success" ? "text-xs text-emerald-200" : "text-xs text-emerald-50/70"}>
+                      {followupStatus.message}
+                    </p>
+                    <Button disabled={followupStatus.status === "loading"} onClick={submitActivatedFollowup} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
+                      Request review
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 

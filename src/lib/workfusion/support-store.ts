@@ -24,6 +24,9 @@ export type LeadInput = {
   consent: boolean;
   consentText?: string;
   userAgent?: string;
+  stage?: string;
+  score?: number;
+  notes?: string;
   metadata?: Record<string, unknown>;
 };
 
@@ -159,12 +162,15 @@ export async function updateSupportMessage(input: {
 export async function saveMarketingLead(input: LeadInput) {
   const email = normalizeEmail(input.email);
   const id = `lead_${randomUUID().replace(/-/gu, "").slice(0, 18)}`;
+  const stage = cleanText(input.stage || "new", 40) || "new";
+  const score = Math.max(0, Math.min(100, Math.round(Number(input.score || 0))));
+  const notes = String(input.notes || "").trim().slice(0, 2000);
   if (databaseConfigured()) {
     try {
       await query(
         `
-        insert into wf_marketing_leads (id, email, persona, source, consent, consent_text, user_agent, metadata)
-        values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+        insert into wf_marketing_leads (id, email, persona, source, consent, consent_text, user_agent, metadata, stage, score, notes)
+        values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11)
         on conflict (email) do update set
           persona = excluded.persona,
           source = excluded.source,
@@ -172,6 +178,9 @@ export async function saveMarketingLead(input: LeadInput) {
           consent_text = excluded.consent_text,
           user_agent = excluded.user_agent,
           metadata = excluded.metadata,
+          stage = case when excluded.stage <> 'new' then excluded.stage else wf_marketing_leads.stage end,
+          score = greatest(wf_marketing_leads.score, excluded.score),
+          notes = case when excluded.notes <> '' then excluded.notes else wf_marketing_leads.notes end,
           status = 'subscribed',
           updated_at = now()
         `,
@@ -184,6 +193,9 @@ export async function saveMarketingLead(input: LeadInput) {
           cleanText(input.consentText || "", 500),
           cleanText(input.userAgent || "", 500) || null,
           JSON.stringify(input.metadata || {}),
+          stage,
+          score,
+          notes,
         ],
       );
       return { id, storage: "postgres" as const };
