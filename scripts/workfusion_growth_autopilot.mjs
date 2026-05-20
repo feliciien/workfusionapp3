@@ -8,6 +8,8 @@ const buildNotesFile = path.join(root, "src", "content", "workfusion", "build-no
 const trackerFile = path.join(reportsDir, "workfusion_channel_tracker.csv");
 const outboxFile = path.join(reportsDir, `workfusion_autopilot_outbox_${today}.json`);
 const latestFile = path.join(reportsDir, "workfusion_autopilot_latest.md");
+const websiteUrl = "https://www.workfusionapp.com";
+const compilerFixerUrl = `${websiteUrl}/mql5-compiler-fixer`;
 
 function readJson(file, fallback) {
   try {
@@ -106,13 +108,18 @@ const outbox = {
       channel: "LinkedIn",
       title: "Founder build note",
       url: "https://www.linkedin.com/feed/",
+      shareUrl: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(websiteUrl)}`,
+      websiteUrl,
+      linkPolicy: "link_allowed",
       status: "manual_required",
-      body: "I am building Workfusionapp for MT4/MT5 EA builders. The current workflow: describe an EA idea, generate a complete MQL draft, paste MetaEditor compiler errors, get a corrected draft, risk-check before manual backtesting, and download the MQL output. It is not a signal service and does not promise trading performance. Looking for serious MQL4/MQL5 builders who want to test it and send direct feedback.",
+      body: `I am building Workfusionapp for MT4/MT5 EA builders.\n\nThe current workflow:\n- describe an EA idea,\n- generate a complete MQL draft,\n- paste MetaEditor compiler errors,\n- get a corrected draft,\n- risk-check before manual backtesting,\n- download the MQL output.\n\nIt is not a signal service and does not promise trading performance.\n\nLooking for serious MQL4/MQL5 builders who want to test it and send direct feedback.\n\n${websiteUrl}`,
     },
     {
       channel: "MQL5 Forum",
       title: "Invalid stops reply",
       url: "https://www.mql5.com/en/forum/509214",
+      websiteUrl,
+      linkPolicy: "no_link_recommended",
       status: "manual_required",
       body: "This is probably not the EA blocking the stop by itself. It is usually the trade server rejecting the stop distance at the exact moment the EA sends or modifies the order. Check Bid/Ask, spread, stop level, freeze level, normalized prices, and print exact retcodes for every failed modify.",
     },
@@ -120,13 +127,17 @@ const outbox = {
       channel: "MQL5 Forum",
       title: "HistoryDeals compile-error reply",
       url: "https://www.mql5.com/en/forum/492730",
+      websiteUrl: compilerFixerUrl,
+      linkPolicy: "link_allowed_relevant",
       status: "manual_required",
-      body: "The first thing I would isolate is whether the root problem is the include or the code. In MT5, many history/deal functions are available through the standard MQL5 API, so manually adding random HistoryDeals.mqh files can create conflicts and ambiguous calls. Remove manually downloaded duplicate includes, compile a minimal EA with built-in history functions, confirm the correct MT5 Data Folder, and fix the first compiler error before chasing cascade errors. If useful, this is the kind of MQL5 compiler workflow Workfusion is built to help with: https://www.workfusionapp.com/mql5-compiler-fixer",
+      body: `The first thing I would isolate is whether the root problem is the include or the code.\n\nIn MT5, many history/deal functions are available through the standard MQL5 API, so manually adding random HistoryDeals.mqh files can create conflicts and ambiguous calls.\n\nI would test this in order:\n1. Remove manually downloaded duplicate include files.\n2. Compile a minimal EA with the built-in history functions.\n3. Confirm you are editing inside the correct MT5 Data Folder.\n4. Avoid mixing MT4-style account/history functions with MQL5 deal-history functions.\n5. Fix the first compiler error before chasing the later cascade errors.\n\nIf useful, this is the kind of MQL5 compiler workflow Workfusion is built to help with:\n${compilerFixerUrl}`,
     },
     {
       channel: "Forex Factory",
       title: "Magic-number evaluation reply",
       url: "https://www.forexfactory.com/forum/69-platform-tech",
+      websiteUrl,
+      linkPolicy: "no_link_recommended",
       status: "manual_required",
       body: "This can be done from MT5 history if each EA uses a unique Magic Number. Use HistorySelect, loop through deals, group by DEAL_MAGIC, and sum profit/swap/commission while filtering entry types so you do not double-count.",
     },

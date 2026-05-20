@@ -58,6 +58,9 @@ export type GrowthManualPost = {
   channel: string;
   title: string;
   url: string;
+  shareUrl: string;
+  websiteUrl: string;
+  linkPolicy: string;
   status: string;
   body: string;
 };
@@ -270,6 +273,9 @@ async function loadManualPostQueue(): Promise<GrowthManualPost[]> {
       channel: String(item.channel || "Manual"),
       title: String(item.title || "Untitled"),
       url: String(item.url || ""),
+      shareUrl: String(item.shareUrl || ""),
+      websiteUrl: String(item.websiteUrl || ""),
+      linkPolicy: String(item.linkPolicy || "manual_review"),
       status: String(item.status || "manual_required"),
       body: String(item.body || ""),
     }));

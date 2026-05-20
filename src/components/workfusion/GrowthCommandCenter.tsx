@@ -42,6 +42,9 @@ type GrowthSnapshot = {
     channel: string;
     title: string;
     url: string;
+    shareUrl: string;
+    websiteUrl: string;
+    linkPolicy: string;
     status: string;
     body: string;
   }>;
@@ -116,6 +119,12 @@ export function GrowthCommandCenter() {
     } catch {
       setStatus("Copy failed. Select the text manually.");
     }
+  }
+
+  async function copyAndOpenPost(id: string, post: GrowthSnapshot["manualPostQueue"][number]) {
+    await copyPost(id, post.body);
+    const nextUrl = post.shareUrl || post.url;
+    if (nextUrl) window.open(nextUrl, "_blank", "noopener,noreferrer");
   }
 
   useEffect(() => {
@@ -273,15 +282,19 @@ export function GrowthCommandCenter() {
                           </div>
                           <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{post.status}</span>
                         </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-400">{post.linkPolicy}</span>
+                          {post.websiteUrl && <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-400">{post.websiteUrl}</span>}
+                        </div>
                         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{post.body}</p>
                         <div className="mt-4 flex flex-wrap gap-3">
                           <button onClick={() => copyPost(id, post.body)} className="rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-[#101112]">
                             {copied === id ? "copied" : "copy text"}
                           </button>
                           {post.url && (
-                            <a href={post.url} target="_blank" rel="noreferrer" className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200 hover:border-cyan-300">
-                              open channel
-                            </a>
+                            <button onClick={() => copyAndOpenPost(id, post)} className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200 hover:border-cyan-300">
+                              copy + open
+                            </button>
                           )}
                         </div>
                       </div>
