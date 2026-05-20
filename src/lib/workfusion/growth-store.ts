@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import { databaseConfigured, ensureWorkfusionSchema, query } from "./database";
 import { resourceGuideSlugs } from "./resource-guides";
@@ -35,6 +35,7 @@ export type GrowthSnapshot = {
   sources: Array<{ source: string; count: number }>;
   pages: Array<{ path: string; visits: number }>;
   channelTracker: GrowthChannelTrackerRow[];
+  manualPostQueue: GrowthManualPost[];
   tasks: Array<{ priority: string; title: string; detail: string }>;
   outreachDrafts: Array<{ channel: string; title: string; body: string }>;
 };
@@ -51,6 +52,14 @@ export type GrowthChannelTrackerRow = {
   status: string;
   result: string;
   notes: string;
+};
+
+export type GrowthManualPost = {
+  channel: string;
+  title: string;
+  url: string;
+  status: string;
+  body: string;
 };
 
 type LeadRow = {
@@ -159,6 +168,7 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     sources: (sources?.rows || []).map((row) => ({ source: row.source || "unknown", count: Number(row.count || 0) })),
     pages: (pages?.rows || []).map((row) => ({ path: row.path, visits: Number(row.visits || 0) })),
     channelTracker: await loadChannelTracker(),
+    manualPostQueue: await loadManualPostQueue(),
     tasks: buildTasks(countMap),
     outreachDrafts: buildOutreachDrafts(),
   };
@@ -240,6 +250,29 @@ async function loadChannelTracker(): Promise<GrowthChannelTrackerRow[]> {
         result: columns[9] || "",
         notes: columns.slice(10).join(",") || "",
       }));
+  } catch {
+    return [];
+  }
+}
+
+async function loadManualPostQueue(): Promise<GrowthManualPost[]> {
+  try {
+    const dir = join(process.cwd(), "reports/growth");
+    const files = (await readdir(dir))
+      .filter((file) => /^workfusion_autopilot_outbox_\d{4}-\d{2}-\d{2}\.json$/u.test(file))
+      .sort();
+    const latest = files.at(-1);
+    if (!latest) return [];
+    const parsed = JSON.parse(await readFile(join(dir, latest), "utf8")) as {
+      manualReviewQueue?: Array<Partial<GrowthManualPost>>;
+    };
+    return (parsed.manualReviewQueue || []).map((item) => ({
+      channel: String(item.channel || "Manual"),
+      title: String(item.title || "Untitled"),
+      url: String(item.url || ""),
+      status: String(item.status || "manual_required"),
+      body: String(item.body || ""),
+    }));
   } catch {
     return [];
   }

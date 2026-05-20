@@ -38,6 +38,13 @@ type GrowthSnapshot = {
     result: string;
     notes: string;
   }>;
+  manualPostQueue: Array<{
+    channel: string;
+    title: string;
+    url: string;
+    status: string;
+    body: string;
+  }>;
   tasks: Array<{ priority: string; title: string; detail: string }>;
   outreachDrafts: Array<{ channel: string; title: string; body: string }>;
 };
@@ -49,6 +56,7 @@ export function GrowthCommandCenter() {
   const [snapshot, setSnapshot] = useState<GrowthSnapshot | null>(null);
   const [status, setStatus] = useState("Enter owner token or use an owner session, then load the growth desk.");
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState("");
 
   const hotLeads = useMemo(() => {
     return [...(snapshot?.leads || [])].sort((a, b) => b.score - a.score || a.stage.localeCompare(b.stage)).slice(0, 12);
@@ -98,6 +106,16 @@ export function GrowthCommandCenter() {
       };
     });
     setStatus(`Updated ${data.lead.email}.`);
+  }
+
+  async function copyPost(id: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(id);
+      setStatus("Copied post draft to clipboard.");
+    } catch {
+      setStatus("Copy failed. Select the text manually.");
+    }
   }
 
   useEffect(() => {
@@ -238,6 +256,38 @@ export function GrowthCommandCenter() {
               </Panel>
               <Panel title="SEO pages">
                 {snapshot.pages.map((item) => <Row key={item.path} label={item.path} value={item.visits} />)}
+              </Panel>
+            </section>
+
+            <section className="mt-8">
+              <Panel title="Manual post queue">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {snapshot.manualPostQueue.map((post, index) => {
+                    const id = `${post.channel}-${post.title}-${index}`;
+                    return (
+                      <div key={id} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">{post.channel}</p>
+                            <p className="mt-1 text-sm font-semibold text-white">{post.title}</p>
+                          </div>
+                          <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{post.status}</span>
+                        </div>
+                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-400">{post.body}</p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button onClick={() => copyPost(id, post.body)} className="rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-[#101112]">
+                            {copied === id ? "copied" : "copy text"}
+                          </button>
+                          {post.url && (
+                            <a href={post.url} target="_blank" rel="noreferrer" className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200 hover:border-cyan-300">
+                              open channel
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </Panel>
             </section>
 
