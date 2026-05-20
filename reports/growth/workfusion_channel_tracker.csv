@@ -5,7 +5,7 @@ date,channel,source_tag,target_persona,asset_or_thread,action,cta,owner,status,r
 2026-05-20,Forex Factory,forexfactory_platform_tech,ea_builder,Platform Tech / EA troubleshooting,Answer one platform or EA build issue,Resource guide only if direct fit,Felicien,planned,,
 2026-05-20,LinkedIn,linkedin_build_note,mql_builder_network,Founder build note,Post workflow demo and ask for testers,Try Workfusion,Felicien,planned,,
 2026-05-20,YouTube,youtube_demo,trading_automation_viewer,Short demo script,Publish 30-60s workflow video,Try free workflow,Felicien,planned,,
-2026-05-20,Partner,partner_mql_freelancer,mql_freelancer,Freelancer outreach,Ask for workflow feedback,Partner test,Felicien,planned,,
+2026-05-20,Partner,partner_mql_freelancer,mql_freelancer,Freelancer outreach,Ask for workflow feedback,Partner test,Felicien,drafted,ready_to_send,AI growth desk includes freelancer feedback draft and guardrails
 2026-05-20,Support,support_inbound,active_user,Open support inbox,Reply and tag blocker,Fix issue or request reproduction,Felicien,ready,idle,Inbox workflow live in /growth; 0 open support tickets at verification
 2026-05-20,MQL5 Forum,mql5_codebase_forum,mq5_developer,EA stop trading because of Invalid stops Why,Drafted no-link technical reply about Bid Ask spread stop level freeze level and logging,No link,Felicien,drafted,ready_to_post,Invalid stops XAUUSD support opportunity
 2026-05-20,Forex Factory,forexfactory_platform_tech,ea_builder,evaluation EAs by magic number MT5,Drafted no-link technical reply about grouping MT5 deals by DEAL_MAGIC,No link,Felicien,drafted,ready_to_post,Magic-number evaluation support opportunity

@@ -73,6 +73,46 @@ type GrowthSnapshot = {
   outreachDrafts: Array<{ channel: string; title: string; body: string }>;
 };
 
+type GrowthIntelligence = {
+  ok: boolean;
+  ai: {
+    provider: "openai";
+    status: "live" | "fallback";
+    model: string;
+    error?: string;
+  };
+  generatedAt: string;
+  objective: string;
+  headline: string;
+  diagnosis: string;
+  confidence: "low" | "medium" | "high";
+  scorecard: {
+    visits7d: number;
+    leads7d: number;
+    totalLeads: number;
+    trials: number;
+    customers: number;
+    usage7d: number;
+    visitorToLeadRate7dPct: number;
+    leadToTrialRatePct: number;
+    trialToCustomerRatePct: number;
+    topPage: string;
+  };
+  benchmarks: Array<{ metric: string; current: string; target: string; basis: string; whyItMatters: string }>;
+  priorities: Array<{ priority: "P0" | "P1" | "P2"; title: string; why: string; action: string; metric: string; expectedImpact: string; deadline: string }>;
+  experiments: Array<{ name: string; hypothesis: string; setup: string; successMetric: string; stopRule: string }>;
+  channelPlan: Array<{ sourceTag: string; channel: string; action: string; draft: string; linkPolicy: string; metric: string }>;
+  partnerOutreach: {
+    targetProfile: string;
+    qualificationQuestions: string[];
+    draft: string;
+    doNotSay: string[];
+  };
+  automationRules: Array<{ trigger: string; action: string; guardrail: string }>;
+  instrumentationGaps: string[];
+  risks: string[];
+};
+
 const stages = ["new", "researching", "contacted", "trial", "customer", "nurture", "closed"];
 const supportStatuses = ["open", "replied", "blocked", "closed"];
 const blockerTags = ["none", "compiler_error", "generated_code_quality", "backtest_confusion", "billing", "login", "download", "mobile", "missing_feature", "ux_confusion"];
@@ -82,6 +122,8 @@ export function GrowthCommandCenter() {
   const [snapshot, setSnapshot] = useState<GrowthSnapshot | null>(null);
   const [status, setStatus] = useState("Enter owner token or use an owner session, then load the growth desk.");
   const [loading, setLoading] = useState(false);
+  const [intelligenceLoading, setIntelligenceLoading] = useState(false);
+  const [intelligence, setIntelligence] = useState<GrowthIntelligence | null>(null);
   const [copied, setCopied] = useState("");
   const [supportDrafts, setSupportDrafts] = useState<Record<string, { ownerNotes: string; replyDraft: string; blocker: string }>>({});
 
@@ -108,6 +150,31 @@ export function GrowthCommandCenter() {
       setStatus("Network request failed while loading growth data.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function runIntelligence() {
+    setIntelligenceLoading(true);
+    setStatus("Running OpenAI growth intelligence on current telemetry.");
+    try {
+      const response = await fetch("/api/admin/growth-intelligence", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "x-workfusion-admin-token": token } : {}),
+        },
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        setStatus(data.error || "Growth intelligence failed.");
+        return;
+      }
+      setIntelligence(data.intelligence);
+      setStatus(`Growth intelligence ready (${data.intelligence?.ai?.status || "unknown"}).`);
+    } catch {
+      setStatus("Network request failed while running growth intelligence.");
+    } finally {
+      setIntelligenceLoading(false);
     }
   }
 
@@ -255,9 +322,14 @@ export function GrowthCommandCenter() {
             />
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-zinc-400">{status}</p>
-              <Button disabled={loading} onClick={() => loadGrowth()} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
-                Load desk
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button disabled={loading} onClick={() => loadGrowth()} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
+                  Load desk
+                </Button>
+                <Button disabled={intelligenceLoading} onClick={() => runIntelligence()} className="rounded-lg border border-cyan-300/50 bg-transparent text-cyan-100 hover:bg-cyan-300/10">
+                  AI analysis
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -270,6 +342,45 @@ export function GrowthCommandCenter() {
               <Metric label="Trials" value={snapshot.counts.trials || 0} />
               <Metric label="7d visits" value={snapshot.counts.visits_7d || 0} />
             </section>
+
+            {intelligence && (
+              <section className="mt-8">
+                <Panel title="AI growth intelligence">
+                  <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-md border border-emerald-300/40 px-2 py-1 text-xs font-semibold text-emerald-200">{intelligence.ai.status}</span>
+                        <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{intelligence.ai.model}</span>
+                        <span className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">confidence: {intelligence.confidence}</span>
+                      </div>
+                      <h2 className="mt-4 text-2xl font-semibold tracking-normal text-white">{intelligence.headline}</h2>
+                      <p className="mt-3 text-sm leading-6 text-zinc-300">{intelligence.diagnosis}</p>
+                      {intelligence.ai.error && <p className="mt-3 rounded-md border border-amber-300/30 bg-amber-300/10 p-3 text-xs text-amber-100">{intelligence.ai.error}</p>}
+                      <div className="mt-5 grid grid-cols-2 gap-3">
+                        <MiniMetric label="Visitor to lead" value={`${intelligence.scorecard.visitorToLeadRate7dPct}%`} />
+                        <MiniMetric label="Usage events" value={String(intelligence.scorecard.usage7d)} />
+                        <MiniMetric label="Leads 7d" value={String(intelligence.scorecard.leads7d)} />
+                        <MiniMetric label="Top page" value={intelligence.scorecard.topPage} />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {intelligence.priorities.map((item) => (
+                        <div key={`${item.priority}-${item.title}`} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-emerald-300">{item.priority}</p>
+                            <p className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{item.deadline}</p>
+                          </div>
+                          <p className="mt-2 text-sm font-semibold text-white">{item.title}</p>
+                          <p className="mt-2 text-sm leading-6 text-zinc-400">{item.why}</p>
+                          <p className="mt-2 text-sm leading-6 text-zinc-200">{item.action}</p>
+                          <p className="mt-2 text-xs text-cyan-200">Metric: {item.metric} | Impact: {item.expectedImpact}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Panel>
+              </section>
+            )}
 
             <section className="mt-8 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
               <div className="rounded-lg border border-white/10 bg-zinc-950">
@@ -388,6 +499,75 @@ export function GrowthCommandCenter() {
               </Panel>
             </section>
 
+            {intelligence && (
+              <section className="mt-8 grid gap-5 lg:grid-cols-2">
+                <Panel title="AI experiments">
+                  <div className="space-y-3">
+                    {intelligence.experiments.map((experiment) => (
+                      <div key={experiment.name} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                        <p className="text-sm font-semibold text-white">{experiment.name}</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-400">{experiment.hypothesis}</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">{experiment.setup}</p>
+                        <p className="mt-2 text-xs text-emerald-200">Success: {experiment.successMetric}</p>
+                        <p className="mt-1 text-xs text-zinc-500">Stop: {experiment.stopRule}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+                <Panel title="AI channel plan">
+                  <div className="space-y-3">
+                    {intelligence.channelPlan.map((item, index) => {
+                      const id = `ai-channel-${item.sourceTag}-${index}`;
+                      return (
+                        <div key={id} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">{item.channel}</p>
+                              <p className="mt-1 text-sm font-semibold text-white">{item.action}</p>
+                            </div>
+                            <button onClick={() => copyPost(id, item.draft)} className="rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-[#101112]">
+                              {copied === id ? "copied" : "copy"}
+                            </button>
+                          </div>
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-300">{item.draft}</p>
+                          <p className="mt-2 text-xs text-zinc-500">{item.sourceTag} | {item.linkPolicy} | Metric: {item.metric}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Panel>
+                <Panel title="Partner feedback ask">
+                  <div className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">MQL freelancer</p>
+                        <p className="mt-1 text-sm font-semibold text-white">{intelligence.partnerOutreach.targetProfile}</p>
+                      </div>
+                      <button onClick={() => copyPost("ai-partner-outreach", intelligence.partnerOutreach.draft)} className="rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-[#101112]">
+                        {copied === "ai-partner-outreach" ? "copied" : "copy"}
+                      </button>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-300">{intelligence.partnerOutreach.draft}</p>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <Checklist title="Ask" items={intelligence.partnerOutreach.qualificationQuestions} />
+                      <Checklist title="Do not say" items={intelligence.partnerOutreach.doNotSay} />
+                    </div>
+                  </div>
+                </Panel>
+                <Panel title="Automation guardrails">
+                  <div className="space-y-3">
+                    {intelligence.automationRules.map((rule) => (
+                      <div key={`${rule.trigger}-${rule.action}`} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                        <p className="text-sm font-semibold text-white">{rule.trigger}</p>
+                        <p className="mt-2 text-sm leading-6 text-zinc-300">{rule.action}</p>
+                        <p className="mt-2 text-xs text-amber-200">{rule.guardrail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+              </section>
+            )}
+
             <section className="mt-8 grid gap-5 lg:grid-cols-2">
               <Panel title="Acquisition tracker">
                 <div className="space-y-3">
@@ -408,8 +588,15 @@ export function GrowthCommandCenter() {
                 <div className="space-y-3">
                   {snapshot.outreachDrafts.map((draft) => (
                     <div key={`${draft.channel}-${draft.title}`} className="rounded-lg border border-white/10 bg-[#101112] p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">{draft.channel}</p>
-                      <p className="mt-1 text-sm font-semibold text-white">{draft.title}</p>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-300">{draft.channel}</p>
+                          <p className="mt-1 text-sm font-semibold text-white">{draft.title}</p>
+                        </div>
+                        <button onClick={() => copyPost(`${draft.channel}-${draft.title}`, draft.body)} className="rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-[#101112]">
+                          {copied === `${draft.channel}-${draft.title}` ? "copied" : "copy"}
+                        </button>
+                      </div>
                       <p className="mt-2 text-sm leading-6 text-zinc-400">{draft.body}</p>
                     </div>
                   ))}
@@ -501,6 +688,15 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-white/10 bg-zinc-950 p-5">
@@ -515,6 +711,19 @@ function Row({ label, value }: { label: string; value: number }) {
     <div className="flex items-center justify-between gap-3 border-b border-white/5 py-2 text-sm">
       <span className="truncate text-zinc-400">{label}</span>
       <span className="font-semibold text-white">{value}</span>
+    </div>
+  );
+}
+
+function Checklist({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-black/20 p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">{title}</p>
+      <div className="mt-2 space-y-2">
+        {items.map((item, index) => (
+          <p key={`${title}-${index}`} className="text-sm leading-5 text-zinc-300">{item}</p>
+        ))}
+      </div>
     </div>
   );
 }

@@ -76,6 +76,27 @@ export type GrowthManualPost = {
   body: string;
 };
 
+export type GrowthIntelligenceTelemetry = {
+  snapshot: GrowthSnapshot;
+  funnel: {
+    visits7d: number;
+    leads7d: number;
+    totalLeads: number;
+    trials: number;
+    customers: number;
+    usage7d: number;
+    visitorToLeadRate7dPct: number;
+    leadToTrialRatePct: number;
+    trialToCustomerRatePct: number;
+  };
+  usageByFeature30d: Array<{ feature: string; count: number }>;
+  usageByDay14d: Array<{ day: string; events: number }>;
+  visitsByDay14d: Array<{ day: string; visits: number }>;
+  topReferrers30d: Array<{ referrer: string; visits: number }>;
+  supportByCategory30d: Array<{ category: string; count: number }>;
+  researchPrinciples: string[];
+};
+
 type LeadRow = {
   id: string;
   email: string;
@@ -209,6 +230,88 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
   };
 }
 
+export async function growthIntelligenceTelemetry(): Promise<GrowthIntelligenceTelemetry> {
+  const snapshot = await growthSnapshot();
+  const leads7d = await query<{ count: string }>(`
+    select count(*)::text as count
+    from wf_marketing_leads
+    where created_at > now() - interval '7 days'
+  `);
+  const usageByFeature30d = await query<{ feature: string | null; count: string }>(`
+    select coalesce(nullif(feature, ''), 'unknown') as feature, count(*)::text as count
+    from wf_usage_events
+    where created_at > now() - interval '30 days'
+    group by 1
+    order by count(*) desc, feature
+    limit 12
+  `);
+  const usageByDay14d = await query<{ day: string; events: string }>(`
+    select to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as day, count(*)::text as events
+    from wf_usage_events
+    where created_at > now() - interval '14 days'
+    group by 1
+    order by 1 asc
+  `);
+  const visitsByDay14d = await query<{ day: string; visits: string }>(`
+    select to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as day, count(*)::text as visits
+    from wf_page_events
+    where created_at > now() - interval '14 days'
+    group by 1
+    order by 1 asc
+  `);
+  const topReferrers30d = await query<{ referrer: string | null; visits: string }>(`
+    select coalesce(nullif(referrer, ''), 'direct') as referrer, count(*)::text as visits
+    from wf_page_events
+    where created_at > now() - interval '30 days'
+    group by 1
+    order by count(*) desc, referrer
+    limit 12
+  `);
+  const supportByCategory30d = await query<{ category: string | null; count: string }>(`
+    select coalesce(nullif(category, ''), 'uncategorized') as category, count(*)::text as count
+    from wf_support_messages
+    where created_at > now() - interval '30 days'
+    group by 1
+    order by count(*) desc, category
+    limit 12
+  `);
+
+  const recentLeads = Number(leads7d?.rows?.[0]?.count || 0);
+  const totalLeads = snapshot.counts.leads || 0;
+  const trials = snapshot.counts.trials || 0;
+  const customers = snapshot.counts.customers || 0;
+  const visits7d = snapshot.counts.visits_7d || 0;
+  const usage7d = snapshot.counts.usage_7d || 0;
+
+  return {
+    snapshot,
+    funnel: {
+      visits7d,
+      leads7d: recentLeads,
+      totalLeads,
+      trials,
+      customers,
+      usage7d,
+      visitorToLeadRate7dPct: pct(recentLeads, visits7d),
+      leadToTrialRatePct: pct(trials, totalLeads),
+      trialToCustomerRatePct: pct(customers, trials),
+    },
+    usageByFeature30d: (usageByFeature30d?.rows || []).map((row) => ({ feature: row.feature || "unknown", count: Number(row.count || 0) })),
+    usageByDay14d: (usageByDay14d?.rows || []).map((row) => ({ day: row.day, events: Number(row.events || 0) })),
+    visitsByDay14d: (visitsByDay14d?.rows || []).map((row) => ({ day: row.day, visits: Number(row.visits || 0) })),
+    topReferrers30d: (topReferrers30d?.rows || []).map((row) => ({ referrer: row.referrer || "direct", visits: Number(row.visits || 0) })),
+    supportByCategory30d: (supportByCategory30d?.rows || []).map((row) => ({ category: row.category || "uncategorized", count: Number(row.count || 0) })),
+    researchPrinciples: [
+      "Optimize for first useful output: a visitor should reach an EA draft, compiler diagnosis, or risk/readiness result before being asked for a heavy commitment.",
+      "Track the full funnel separately: visitor -> opt-in lead -> activated user -> trial -> paid customer. Do not judge acquisition only by page views.",
+      "Use high-intent channels first: public MT4/MT5 compiler errors, invalid stops, no-trades-in-tester questions, and MQL freelancer feedback threads.",
+      "Answer the technical fix before adding a link. Link only when the Workfusion page directly continues the debugging path.",
+      "Keep Workfusionapp commercial and BoltIQ internal. Workfusion messaging is a software workflow for EA builders, not trading performance, signals, or fund promotion.",
+      "Do not scrape or buy bulk email lists. Use opt-in leads, manual community help, support feedback, and partner feedback loops.",
+    ],
+  };
+}
+
 export async function updateGrowthLead(input: {
   id: string;
   stage?: string;
@@ -261,6 +364,11 @@ function normalizeCounts(row: Record<string, string>) {
     acc[key] = Number(value || 0);
     return acc;
   }, {});
+}
+
+function pct(numerator: number, denominator: number) {
+  if (!denominator) return 0;
+  return Math.round((numerator / denominator) * 10000) / 100;
 }
 
 async function loadChannelTracker(): Promise<GrowthChannelTrackerRow[]> {
@@ -339,6 +447,11 @@ function buildTasks(counts: Record<string, number>) {
       detail: `${resourceGuideSlugs.length} SEO guides are live; share one helpful answer and link only when the guide directly helps.`,
     },
     {
+      priority: "P1",
+      title: "Ask one MQL freelancer for workflow feedback",
+      detail: "Send one manual partner message to a relevant MQL freelancer. Ask for feedback, not promotion, and keep Workfusion separate from BoltIQ.",
+    },
+    {
       priority: "P2",
       title: "Keep BoltIQ and Workfusion separate",
       detail: "Do not pitch BoltIQ partner candidates as Workfusion customers unless they explicitly opt into the product discussion.",
@@ -374,9 +487,15 @@ function buildOutreachDrafts() {
     },
     {
       channel: "MQL freelancer",
-      title: "Partner-friendly angle",
+      title: "Workflow feedback partner ask",
       body:
-        "Workfusion is not replacing MQL freelancers. It can help produce cleaner first drafts, compiler diagnostics, and risk/readiness notes before a developer takes over the serious review.",
+        "Hi [Name], I am building Workfusionapp, an AI EA Generator + Debugger for MT4/MT5 builders.\n\nI am not trying to replace serious MQL freelancers. The angle is to help traders create cleaner first drafts, capture compiler diagnostics, run a basic risk/readiness check, and then hand a better brief to a developer for serious review.\n\nWould you be open to giving feedback on the workflow from a freelancer perspective?\n\nWhat I would like to learn:\n1. where client EA briefs usually fail;\n2. which compiler/runtime errors waste the most time;\n3. whether a tool like this could help you receive cleaner jobs;\n4. what boundaries are needed so clients do not think AI output replaces professional review.\n\nWebsite: https://www.workfusionapp.com\n\nNo broker access, no trading credentials, no profit promises. Just product workflow feedback.",
+    },
+    {
+      channel: "MQL freelancer",
+      title: "Freelancer collaboration boundary",
+      body:
+        "For clarity, Workfusionapp is a software workflow tool: generate EA drafts, debug compiler errors, risk-check drafts, save projects, and download MQL outputs.\n\nIt should not be positioned as a signal service or guaranteed profitable EA generator.\n\nThe partner angle I am exploring is simple: if MQL freelancers find it useful, Workfusion could become a pre-review tool that helps clients describe jobs better before hiring a developer.\n\nI am looking for feedback first, not asking for paid promotion.",
     },
     {
       channel: "Forum answer",
