@@ -37,6 +37,7 @@ export default function UpdatesPage() {
             <a href="/resources" className="hover:text-white">Resources</a>
             <a href="/mql5-compiler-fixer" className="hover:text-white">Compiler fixer</a>
             <a href="/pricing" className="hover:text-white">Pricing</a>
+            <a href="/growth" className="hover:text-white">Growth</a>
           </nav>
         </div>
       </header>

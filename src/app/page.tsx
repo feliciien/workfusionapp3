@@ -942,6 +942,7 @@ export default function Home() {
             <a href="#shots" className="hover:text-white">Screenshots</a>
             <a href="#pricing" className="hover:text-white">Pricing</a>
             <a href="/resources" className="hover:text-white">Resources</a>
+            <a href="/growth" className="hover:text-white">Growth</a>
             <a href="#support" className="hover:text-white">Support</a>
             <a href="/legal" className="hover:text-white">Risk disclosure</a>
           </nav>
@@ -967,6 +968,7 @@ export default function Home() {
             <a onClick={() => setMobileMenuOpen(false)} href="#shots" className="rounded-lg bg-white/[0.04] px-3 py-3">Screenshots</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#pricing" className="rounded-lg bg-white/[0.04] px-3 py-3">Pricing</a>
             <a onClick={() => setMobileMenuOpen(false)} href="/resources" className="rounded-lg bg-white/[0.04] px-3 py-3">Resources</a>
+            <a onClick={() => setMobileMenuOpen(false)} href="/growth" className="rounded-lg bg-white/[0.04] px-3 py-3">Growth</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#support" className="rounded-lg bg-white/[0.04] px-3 py-3">Support</a>
             <a onClick={() => setMobileMenuOpen(false)} href="/legal" className="rounded-lg bg-white/[0.04] px-3 py-3">Risk disclosure</a>
           </nav>
@@ -1596,10 +1598,11 @@ export default function Home() {
         <p>Software tool only. No investment advice. No profit guarantee.</p>
       </footer>
 
-      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 gap-2 rounded-lg border border-white/10 bg-[#101112]/95 p-2 text-center text-xs text-zinc-300 shadow-2xl backdrop-blur md:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 gap-2 rounded-lg border border-white/10 bg-[#101112]/95 p-2 text-center text-xs text-zinc-300 shadow-2xl backdrop-blur md:hidden">
         <a href="#" className="rounded-md px-2 py-3 hover:bg-white/10">Home</a>
         <a href="#console" className="rounded-md px-2 py-3 hover:bg-white/10">Console</a>
         <a href="#pricing" className="rounded-md px-2 py-3 hover:bg-white/10">Pricing</a>
+        <a href="/growth" className="rounded-md px-2 py-3 hover:bg-white/10">Growth</a>
         <a href="#support" className="rounded-md px-2 py-3 hover:bg-white/10">Support</a>
       </nav>
     </main>

@@ -254,6 +254,9 @@ export default function PricingPage() {
             <a href="/#console" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
               Open console
             </a>
+            <a href="/growth" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
+              Growth
+            </a>
             <a href="/legal" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
               Risk disclosure
             </a>
