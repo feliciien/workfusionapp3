@@ -586,6 +586,20 @@ export default function Home() {
         notify({ tone: "error", title: `${label} failed`, body: message });
         return;
       }
+      if (endpoint === "/api/trading/download" && typeof data.file === "string") {
+        const filename = typeof data.filename === "string" ? data.filename : platform === "mt4" ? "workfusion-ea.mq4" : "workfusion-ea.mq5";
+        const blob = new Blob([data.file], { type: "text/plain;charset=utf-8" });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        data.summary = `Download ready: ${filename}. The file was generated from the current EA draft shown below.`;
+        data.recommendation = "Open the downloaded file in MetaEditor, compile it, then run manual Strategy Tester validation before any live use.";
+      }
       setResult((current) => {
         const currentCode = pickEaCode(current, previousCode);
         const returnedCode = data.fixedCode || data.mql5Code || "";
