@@ -118,8 +118,98 @@ export async function ensureWorkfusionSchema() {
         path text not null,
         referrer text,
         user_agent text,
+        metadata jsonb not null default '{}'::jsonb,
         created_at timestamptz not null default now()
       );
+
+      alter table wf_page_events
+        add column if not exists metadata jsonb not null default '{}'::jsonb;
+
+      alter table wf_usage_events
+        add column if not exists metadata jsonb not null default '{}'::jsonb;
+
+      update wf_page_events
+      set metadata = metadata
+        || jsonb_build_object(
+          'sourceTag',
+          case
+            when coalesce(metadata->>'sourceTag', '') <> '' then metadata->>'sourceTag'
+            when coalesce(referrer, '') = '' then 'direct'
+            when lower(referrer) like '%github%' then 'github'
+            when lower(referrer) like '%linkedin%' or lower(referrer) like '%lnkd.in%' then 'linkedin'
+            when lower(referrer) like '%codex%' or lower(referrer) like '%chatgpt%' or lower(referrer) like '%openai%' then 'codex'
+            when lower(referrer) like '%mql5.com%' then 'mql5_forum'
+            when lower(referrer) like '%forexfactory.com%' then 'forex_factory'
+            when lower(referrer) like '%earnforex.com%' then 'earnforex_forum'
+            when lower(referrer) like '%forum%' then 'forum_reply'
+            when lower(referrer) like '%google.%' or lower(referrer) like '%bing.%' or lower(referrer) like '%duckduckgo%' then 'search'
+            else 'other'
+          end
+        )
+        || jsonb_build_object(
+          'conversionPath',
+          case
+            when coalesce(metadata->>'conversionPath', '') <> '' then metadata->>'conversionPath'
+            when path = '/' then 'homepage'
+            when path like '%mql5-compiler-fixer%' then 'compiler_fixer'
+            when path like '%mt5-ea-generator%' then 'ea_generator'
+            when path like '%mt4-ea-debugger%' then 'mt4_debugger'
+            when path like '%prop-firm-ea-risk-checker%' then 'risk_checker'
+            when path like '%mql5-code-review%' then 'code_review'
+            when path = '/resources' then 'resources_hub'
+            when path like '/resources/%' then 'resource_guide'
+            when path like '%pricing%' then 'pricing'
+            when path like '%support%' then 'support'
+            when path like '%updates%' then 'updates'
+            else 'unknown'
+          end
+        )
+      where coalesce(metadata->>'sourceTag', '') = ''
+         or coalesce(metadata->>'conversionPath', '') = '';
+
+      update wf_usage_events
+      set metadata = metadata
+        || jsonb_build_object(
+          'sourceTag',
+          case
+            when coalesce(metadata->>'sourceTag', '') <> '' then metadata->>'sourceTag'
+            when lower(coalesce(metadata->>'referrer', '')) like '%github%' then 'github'
+            when lower(coalesce(metadata->>'referrer', '')) like '%linkedin%' or lower(coalesce(metadata->>'referrer', '')) like '%lnkd.in%' then 'linkedin'
+            when lower(coalesce(metadata->>'referrer', '')) like '%codex%' or lower(coalesce(metadata->>'referrer', '')) like '%chatgpt%' or lower(coalesce(metadata->>'referrer', '')) like '%openai%' then 'codex'
+            when lower(coalesce(metadata->>'referrer', '')) like '%mql5.com%' then 'mql5_forum'
+            when lower(coalesce(metadata->>'referrer', '')) like '%forexfactory.com%' then 'forex_factory'
+            when lower(coalesce(metadata->>'referrer', '')) like '%earnforex.com%' then 'earnforex_forum'
+            when lower(coalesce(metadata->>'referrer', '')) like '%forum%' then 'forum_reply'
+            when lower(coalesce(metadata->>'referrer', '')) like '%google.%' or lower(coalesce(metadata->>'referrer', '')) like '%bing.%' or lower(coalesce(metadata->>'referrer', '')) like '%duckduckgo%' then 'search'
+            else 'direct'
+          end
+        )
+        || jsonb_build_object(
+          'conversionPath',
+          case
+            when coalesce(metadata->>'conversionPath', '') <> '' then metadata->>'conversionPath'
+            when coalesce(metadata->>'page', '') = '/' then 'homepage'
+            when coalesce(metadata->>'page', '') like '%mql5-compiler-fixer%' then 'compiler_fixer'
+            when coalesce(metadata->>'page', '') like '%mt5-ea-generator%' then 'ea_generator'
+            when coalesce(metadata->>'page', '') like '%mt4-ea-debugger%' then 'mt4_debugger'
+            when coalesce(metadata->>'page', '') like '%prop-firm-ea-risk-checker%' then 'risk_checker'
+            when coalesce(metadata->>'page', '') like '%mql5-code-review%' then 'code_review'
+            when coalesce(metadata->>'page', '') = '/resources' then 'resources_hub'
+            when coalesce(metadata->>'page', '') like '/resources/%' then 'resource_guide'
+            when coalesce(metadata->>'page', '') like '%pricing%' then 'pricing'
+            when coalesce(metadata->>'page', '') like '%support%' then 'support'
+            when coalesce(metadata->>'page', '') like '%updates%' then 'updates'
+            when feature = 'generate' then 'ea_generator'
+            when feature in ('debug', 'compile_check') then 'compiler_fixer'
+            when feature in ('optimize', 'debrief', 'backtest_estimate') then 'risk_checker'
+            when feature = 'download' then 'ea_generator'
+            when feature = 'checkout' then 'pricing'
+            when feature = 'support' then 'support'
+            else 'unknown'
+          end
+        )
+      where coalesce(metadata->>'sourceTag', '') = ''
+         or coalesce(metadata->>'conversionPath', '') = '';
 
       create table if not exists wf_billing_events (
         id bigserial primary key,

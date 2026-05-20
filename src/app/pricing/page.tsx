@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 
 type CheckoutState = {
   plan?: string;
@@ -95,6 +96,15 @@ function validEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
+function getGuestId() {
+  const key = "workfusion_guest_id";
+  const existing = window.localStorage.getItem(key);
+  if (existing) return existing;
+  const next = crypto.randomUUID();
+  window.localStorage.setItem(key, next);
+  return next;
+}
+
 export default function PricingPage() {
   const [checkout, setCheckout] = useState<CheckoutState>({
     status: "idle",
@@ -150,10 +160,27 @@ export default function PricingPage() {
 
     setCheckout({ plan, status: "loading", message: `Creating PayPal checkout for ${plan}.` });
     try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent: "trial_start",
+        conversionPath: "pricing",
+      });
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, provider: "paypal", email, ownerToken: ownerToken || undefined }),
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          plan,
+          provider: "paypal",
+          email,
+          ownerToken: ownerToken || undefined,
+          page: window.location.pathname,
+          referrer: document.referrer,
+          url: window.location.href,
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+        }),
       });
       const data = await response.json();
       if (!response.ok || data.error) {

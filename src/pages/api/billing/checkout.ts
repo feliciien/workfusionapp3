@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { upsertUser } from "@/lib/workfusion/account-store";
+import { recordUsageEvent, upsertUser } from "@/lib/workfusion/account-store";
 import { getSession } from "@/lib/workfusion/session";
 import { createSessionCookie, isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 import { createPaypalSubscription } from "@/lib/workfusion/paypal";
+import type { WorkfusionPlan } from "@/lib/workfusion/types";
 
 const priceEnv: Record<string, string | undefined> = {
   starter: process.env.STRIPE_PRICE_STARTER,
@@ -47,6 +49,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await upsertUser({ email, role, plan: "free", lastLogin: true });
     res.setHeader("Set-Cookie", createSessionCookie(email, role, "free"));
   }
+
+  const page = String(req.body?.page || "/pricing");
+  const referrer = String(req.body?.referrer || req.headers.referer || "");
+  const url = String(req.body?.url || req.headers.referer || "");
+  const attribution = attributionFrom({
+    referrer,
+    url,
+    path: page,
+    intent: "trial_start",
+    sourceTag: String(req.body?.sourceTag || ""),
+    conversionPath: String(req.body?.conversionPath || "pricing"),
+  });
+  await recordUsageEvent({
+    session,
+    eventType: "trial_start",
+    feature: "checkout",
+    plan: plan as WorkfusionPlan,
+    metadata: {
+      ...attribution,
+      page,
+      referrer,
+      url,
+      provider,
+      plan,
+      eventSource: "checkout_api",
+    },
+  });
 
   if (!liveEnabled) {
     return res.status(200).json({

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { recordUsageEvent } from "@/lib/workfusion/account-store";
 import { getSession } from "@/lib/workfusion/session";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 import type { WorkfusionPlan } from "@/lib/workfusion/types";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -12,6 +13,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const metadata = req.body?.metadata && typeof req.body.metadata === "object" && !Array.isArray(req.body.metadata)
     ? req.body.metadata as Record<string, unknown>
     : {};
+  const page = String(req.body?.page || req.headers.referer || "").slice(0, 500);
+  const referrer = String(req.body?.referrer || "").slice(0, 500);
+  const url = String(req.body?.url || req.headers.referer || "").slice(0, 800);
+  const intent = String(req.body?.intent || metadata.intent || "").slice(0, 120);
+  const attribution = attributionFrom({
+    referrer,
+    url,
+    path: page,
+    intent,
+    sourceTag: String(req.body?.sourceTag || metadata.sourceTag || ""),
+    conversionPath: String(req.body?.conversionPath || metadata.conversionPath || ""),
+  });
 
   if (!eventType) return res.status(400).json({ error: "event_type_required" });
 
@@ -22,12 +35,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     plan: plan as WorkfusionPlan,
     metadata: {
       ...metadata,
-      page: String(req.body?.page || req.headers.referer || "").slice(0, 500),
+      page,
+      referrer,
+      url,
+      intent,
+      sourceTag: attribution.sourceTag,
+      conversionPath: attribution.conversionPath,
     },
   });
 
   return res.status(200).json({
     ok,
     storage: ok ? "postgres" : "local-json",
+    sourceTag: attribution.sourceTag,
+    conversionPath: attribution.conversionPath,
   });
 }

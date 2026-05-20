@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 
 type TradingResult = {
   riskScore?: number;
@@ -221,14 +222,31 @@ function usageEventFor(endpoint: string, label: string) {
 
 async function trackUsageEvent(eventType: string, feature: string, metadata: Record<string, unknown> = {}) {
   try {
+    const page = window.location.pathname;
+    const attribution = attributionFrom({
+      referrer: document.referrer,
+      url: window.location.href,
+      path: page,
+      intent: String(metadata.intent || ""),
+      sourceTag: String(metadata.sourceTag || ""),
+      conversionPath: String(metadata.conversionPath || ""),
+    });
     await fetch("/api/analytics/usage", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
       body: JSON.stringify({
         eventType,
         feature,
-        page: window.location.pathname,
-        metadata,
+        page,
+        referrer: document.referrer,
+        url: window.location.href,
+        sourceTag: attribution.sourceTag,
+        conversionPath: attribution.conversionPath,
+        metadata: {
+          ...metadata,
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+        },
       }),
     });
   } catch {
@@ -460,12 +478,25 @@ export default function Home() {
     const previousCode = pickEaCode(result, codeFromRequest || debugCode);
     const shouldPreserveCode = !["/api/trading/generate", "/api/trading/debug"].includes(endpoint);
     const trackedEvent = usageEventFor(endpoint, label);
+    const attribution = attributionFrom({
+      referrer: document.referrer,
+      url: window.location.href,
+      path: window.location.pathname,
+      intent: trackedEvent.feature === "generate"
+        ? "ea_draft"
+        : trackedEvent.feature === "debug" || trackedEvent.feature === "compile_check"
+          ? "compiler_error"
+          : trackedEvent.feature === "backtest_estimate"
+            ? "risk_check"
+            : "",
+    });
 
     setActiveAction(label);
     trackUsageEvent(trackedEvent.eventType, trackedEvent.feature, {
       market,
       platform,
       label,
+      conversionStage: "intent",
       hasCode: Boolean(codeFromRequest || currentEaCode),
       hasErrors: Boolean(debugErrors.trim()),
     }).catch(() => undefined);
@@ -473,7 +504,14 @@ export default function Home() {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...body,
+          page: window.location.pathname,
+          referrer: document.referrer,
+          url: window.location.href,
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+        }),
       });
       const data = await response.json();
       if (!response.ok || data.error) {
@@ -504,6 +542,14 @@ export default function Home() {
           lastActionLabel: label,
         };
       });
+      trackUsageEvent(`${trackedEvent.feature}_completed`, trackedEvent.feature, {
+        market,
+        platform,
+        label,
+        conversionStage: label === "Generate" || label === "Debug" ? "first_useful_output" : "completion",
+        compiled: data.compiled === true,
+        status: data.status || "ok",
+      }).catch(() => undefined);
       notify({
         tone: data.compiled === false && data.compiler?.mode === "static_precheck" ? "warning" : "success",
         title: `${label} complete`,
@@ -639,11 +685,34 @@ export default function Home() {
     }
 
     setActiveAction(`PayPal ${planKey}`);
+    trackUsageEvent("trial_start", "checkout", {
+      plan: planKey,
+      conversionStage: "trial_start",
+      sourceTag: "",
+      conversionPath: "pricing",
+    }).catch(() => undefined);
     try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent: "trial_start",
+        conversionPath: "pricing",
+      });
       const response = await fetch("/api/billing/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey, provider: "paypal", email, ownerToken: ownerToken || undefined }),
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          plan: planKey,
+          provider: "paypal",
+          email,
+          ownerToken: ownerToken || undefined,
+          page: window.location.pathname,
+          referrer: document.referrer,
+          url: window.location.href,
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+        }),
       });
       const data = await response.json();
       if (!response.ok || data.error) {
@@ -667,6 +736,12 @@ export default function Home() {
   async function submitSupport() {
     setSupportStatus({ status: "loading", message: "Analyzing and sending your support message." });
     try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent: supportCategory === "compiler_error" ? "compiler_error" : "",
+      });
       const response = await fetch("/api/support/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
@@ -676,6 +751,10 @@ export default function Home() {
           subject: supportSubject,
           message: supportMessage,
           page: typeof window !== "undefined" ? window.location.pathname : "/",
+          referrer: typeof window !== "undefined" ? document.referrer : "",
+          url: typeof window !== "undefined" ? window.location.href : "",
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
         }),
       });
       const data = await response.json();
@@ -701,6 +780,12 @@ export default function Home() {
   async function joinLeadList(source = "homepage_ea_builder_updates", intent = leadIntent) {
     setLeadStatus({ status: "loading", message: "Saving opt-in email." });
     try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent,
+      });
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
@@ -713,6 +798,10 @@ export default function Home() {
           cta: "primary_conversion_cta",
           leadStatus: "new",
           page: typeof window !== "undefined" ? window.location.pathname : "/",
+          referrer: typeof window !== "undefined" ? document.referrer : "",
+          url: typeof window !== "undefined" ? window.location.href : "",
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
         }),
       });
       const data = await response.json();
@@ -738,7 +827,12 @@ export default function Home() {
     fetch("/api/analytics/event", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
-      body: JSON.stringify({ path: window.location.pathname, referrer: document.referrer }),
+      body: JSON.stringify({
+        path: window.location.pathname,
+        referrer: document.referrer,
+        url: window.location.href,
+        ...attributionFrom({ referrer: document.referrer, url: window.location.href, path: window.location.pathname }),
+      }),
     }).catch(() => undefined);
   }, []);
 

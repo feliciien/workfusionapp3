@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { recordUsageEvent } from "@/lib/workfusion/account-store";
 import { getSession, isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 import { saveMarketingLead } from "@/lib/workfusion/support-store";
 
 const CONSENT_TEXT = "I agree to receive Workfusion EA builder updates and understand I can unsubscribe later.";
@@ -15,6 +16,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const cta = String(req.body?.cta || "primary_conversion_cta").trim().slice(0, 120);
   const leadStatus = String(req.body?.leadStatus || "new").trim().slice(0, 40);
   const page = String(req.body?.page || req.headers.referer || "/").trim().slice(0, 500);
+  const referrer = String(req.body?.referrer || req.headers.referer || "").trim().slice(0, 500);
+  const url = String(req.body?.url || req.headers.referer || "").trim().slice(0, 800);
+  const attribution = attributionFrom({
+    referrer,
+    url,
+    path: page,
+    intent,
+    sourceTag: String(req.body?.sourceTag || ""),
+    conversionPath: String(req.body?.conversionPath || ""),
+  });
   const consent = req.body?.consent === true;
 
   if (!isValidEmail(email)) {
@@ -37,6 +48,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       intent,
       cta,
       leadStatus,
+      sourceTag: attribution.sourceTag,
+      conversionPath: attribution.conversionPath,
+      referrer,
+      url,
       eventSource: source,
     },
   });
@@ -51,6 +66,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       cta,
       leadStatus,
       page,
+      referrer,
+      url,
+      sourceTag: attribution.sourceTag,
+      conversionPath: attribution.conversionPath,
     },
   });
 

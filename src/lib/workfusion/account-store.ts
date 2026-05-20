@@ -331,7 +331,7 @@ export async function featureAllowance(
       from wf_usage_events
       where user_id = $1
         and feature = $2
-        and event_type = 'feature_run'
+        and event_type in ('feature_run', 'first_useful_output', 'download_completed')
         and created_at >= $3::timestamptz
       `,
       [access.session.id, feature, periodStart],
@@ -426,13 +426,14 @@ export async function recordPageEvent(input: {
   path: string;
   referrer?: string;
   userAgent?: string;
+  metadata?: Record<string, unknown>;
 }) {
   if (!databaseConfigured()) return false;
   try {
     await query(
       `
-      insert into wf_page_events (user_id, email, path, referrer, user_agent)
-      values ($1, $2, $3, $4, $5)
+      insert into wf_page_events (user_id, email, path, referrer, user_agent, metadata)
+      values ($1, $2, $3, $4, $5, $6::jsonb)
       `,
       [
         input.session.id,
@@ -440,6 +441,7 @@ export async function recordPageEvent(input: {
         input.path || "/",
         input.referrer || null,
         input.userAgent || null,
+        JSON.stringify(input.metadata || {}),
       ],
     );
     return true;

@@ -45,6 +45,8 @@ export type GrowthSnapshot = {
   segments: Array<{ persona: string; count: number }>;
   sources: Array<{ source: string; count: number }>;
   pages: Array<{ path: string; visits: number }>;
+  sourceTags: Array<{ sourceTag: string; count: number }>;
+  conversionPaths: Array<{ conversionPath: string; count: number }>;
   channelTracker: GrowthChannelTrackerRow[];
   manualPostQueue: GrowthManualPost[];
   tasks: Array<{ priority: string; title: string; detail: string }>;
@@ -93,6 +95,9 @@ export type GrowthIntelligenceTelemetry = {
   usageByDay14d: Array<{ day: string; events: number }>;
   visitsByDay14d: Array<{ day: string; visits: number }>;
   topReferrers30d: Array<{ referrer: string; visits: number }>;
+  sourceTags30d: Array<{ sourceTag: string; count: number }>;
+  conversionPaths30d: Array<{ conversionPath: string; count: number }>;
+  funnelEvents30d: Array<{ sourceTag: string; conversionPath: string; eventType: string; feature: string; count: number }>;
   supportByCategory30d: Array<{ category: string; count: number }>;
   researchPrinciples: string[];
 };
@@ -194,6 +199,28 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     order by count(*) desc
     limit 12
   `);
+  const sourceTags = await query<{ source_tag: string | null; count: string }>(`
+    select coalesce(nullif(metadata->>'sourceTag', ''), 'unknown') as source_tag, count(*)::text as count
+    from (
+      select metadata from wf_page_events where created_at > now() - interval '30 days'
+      union all
+      select metadata from wf_usage_events where created_at > now() - interval '30 days'
+    ) events
+    group by 1
+    order by count(*) desc, source_tag
+    limit 12
+  `);
+  const conversionPaths = await query<{ conversion_path: string | null; count: string }>(`
+    select coalesce(nullif(metadata->>'conversionPath', ''), 'unknown') as conversion_path, count(*)::text as count
+    from (
+      select metadata from wf_page_events where created_at > now() - interval '30 days'
+      union all
+      select metadata from wf_usage_events where created_at > now() - interval '30 days'
+    ) events
+    group by 1
+    order by count(*) desc, conversion_path
+    limit 12
+  `);
 
   const countMap = normalizeCounts(counts?.rows[0] || {});
   return {
@@ -223,6 +250,8 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     segments: (segments?.rows || []).map((row) => ({ persona: row.persona || "unknown", count: Number(row.count || 0) })),
     sources: (sources?.rows || []).map((row) => ({ source: row.source || "unknown", count: Number(row.count || 0) })),
     pages: (pages?.rows || []).map((row) => ({ path: row.path, visits: Number(row.visits || 0) })),
+    sourceTags: (sourceTags?.rows || []).map((row) => ({ sourceTag: row.source_tag || "unknown", count: Number(row.count || 0) })),
+    conversionPaths: (conversionPaths?.rows || []).map((row) => ({ conversionPath: row.conversion_path || "unknown", count: Number(row.count || 0) })),
     channelTracker: await loadChannelTracker(),
     manualPostQueue: await loadManualPostQueue(),
     tasks: buildTasks(countMap),
@@ -275,6 +304,19 @@ export async function growthIntelligenceTelemetry(): Promise<GrowthIntelligenceT
     order by count(*) desc, category
     limit 12
   `);
+  const funnelEvents30d = await query<{ source_tag: string | null; conversion_path: string | null; event_type: string | null; feature: string | null; count: string }>(`
+    select
+      coalesce(nullif(metadata->>'sourceTag', ''), 'unknown') as source_tag,
+      coalesce(nullif(metadata->>'conversionPath', ''), 'unknown') as conversion_path,
+      coalesce(nullif(event_type, ''), 'unknown') as event_type,
+      coalesce(nullif(feature, ''), 'unknown') as feature,
+      count(*)::text as count
+    from wf_usage_events
+    where created_at > now() - interval '30 days'
+    group by 1, 2, 3, 4
+    order by count(*) desc, source_tag, conversion_path, event_type
+    limit 30
+  `);
 
   const recentLeads = Number(leads7d?.rows?.[0]?.count || 0);
   const totalLeads = snapshot.counts.leads || 0;
@@ -300,6 +342,15 @@ export async function growthIntelligenceTelemetry(): Promise<GrowthIntelligenceT
     usageByDay14d: (usageByDay14d?.rows || []).map((row) => ({ day: row.day, events: Number(row.events || 0) })),
     visitsByDay14d: (visitsByDay14d?.rows || []).map((row) => ({ day: row.day, visits: Number(row.visits || 0) })),
     topReferrers30d: (topReferrers30d?.rows || []).map((row) => ({ referrer: row.referrer || "direct", visits: Number(row.visits || 0) })),
+    sourceTags30d: snapshot.sourceTags,
+    conversionPaths30d: snapshot.conversionPaths,
+    funnelEvents30d: (funnelEvents30d?.rows || []).map((row) => ({
+      sourceTag: row.source_tag || "unknown",
+      conversionPath: row.conversion_path || "unknown",
+      eventType: row.event_type || "unknown",
+      feature: row.feature || "unknown",
+      count: Number(row.count || 0),
+    })),
     supportByCategory30d: (supportByCategory30d?.rows || []).map((row) => ({ category: row.category || "uncategorized", count: Number(row.count || 0) })),
     researchPrinciples: [
       "Optimize for first useful output: a visitor should reach an EA draft, compiler diagnosis, or risk/readiness result before being asked for a heavy commitment.",

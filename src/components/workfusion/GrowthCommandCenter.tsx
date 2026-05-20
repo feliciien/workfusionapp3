@@ -46,6 +46,8 @@ type GrowthSnapshot = {
   segments: Array<{ persona: string; count: number }>;
   sources: Array<{ source: string; count: number }>;
   pages: Array<{ path: string; visits: number }>;
+  sourceTags: Array<{ sourceTag: string; count: number }>;
+  conversionPaths: Array<{ conversionPath: string; count: number }>;
   channelTracker: Array<{
     date: string;
     channel: string;
@@ -451,13 +453,22 @@ export function GrowthCommandCenter() {
               </div>
             </section>
 
-            <section className="mt-8 grid gap-5 lg:grid-cols-3">
+            <section className="mt-8 grid gap-5 lg:grid-cols-4">
               <Panel title="Segments">
                 {snapshot.segments.map((item) => <Row key={item.persona} label={item.persona} value={item.count} />)}
               </Panel>
               <Panel title="Sources">
                 {snapshot.sources.map((item) => <Row key={item.source} label={item.source} value={item.count} />)}
               </Panel>
+              <Panel title="Attribution">
+                {snapshot.sourceTags.map((item) => <Row key={item.sourceTag} label={item.sourceTag} value={item.count} />)}
+              </Panel>
+              <Panel title="Conversion paths">
+                {snapshot.conversionPaths.map((item) => <Row key={item.conversionPath} label={item.conversionPath} value={item.count} />)}
+              </Panel>
+            </section>
+
+            <section className="mt-8">
               <Panel title="SEO pages">
                 {snapshot.pages.map((item) => <Row key={item.path} label={item.path} value={item.visits} />)}
               </Panel>

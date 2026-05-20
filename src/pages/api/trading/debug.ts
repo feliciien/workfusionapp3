@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { featureAllowance, getPersistentAccess, limitReachedPayload, limitsAfterRun, recordUsageEvent } from "@/lib/workfusion/account-store";
 import { aiMeta, askWorkfusionAi, stringArrayField, stringField } from "@/lib/workfusion/openai";
 import { getSession } from "@/lib/workfusion/session";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 import { compileCheck } from "@/lib/workfusion/worker";
 import { fixedMql } from "./_engine";
 
@@ -43,7 +44,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const useAiCode = aiFixedCode.trim().length > 0 && aiCheck.status === "pass";
   const fixedCode = useAiCode ? aiFixedCode : fallbackCode;
   const compile = useAiCode ? aiCheck : fallbackCheck;
-  await recordUsageEvent({ session: access.session, eventType: "feature_run", feature: "debug", plan: access.plan });
+  const page = String(req.body?.page || req.headers.referer || "/");
+  const referrer = String(req.body?.referrer || req.headers.referer || "");
+  const url = String(req.body?.url || req.headers.referer || "");
+  const attribution = attributionFrom({
+    referrer,
+    url,
+    path: page,
+    intent: "compiler_error",
+    sourceTag: String(req.body?.sourceTag || ""),
+    conversionPath: String(req.body?.conversionPath || ""),
+  });
+  await recordUsageEvent({
+    session: access.session,
+    eventType: "first_useful_output",
+    feature: "debug",
+    plan: access.plan,
+    metadata: {
+      ...attribution,
+      page,
+      referrer,
+      url,
+      platform: String(req.body?.platform || ""),
+      hasErrors: Boolean(String(req.body?.errors || "").trim()),
+      eventSource: "debug_api",
+    },
+  });
 
   return res.status(200).json({
     status: "Fixed draft generated",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { attributionFrom } from "@/lib/workfusion/source-attribution";
 
 function guestId() {
   const key = "workfusion_guest_id";
@@ -13,10 +14,22 @@ function guestId() {
 
 export function PageEventTracker({ path }: { path?: string }) {
   useEffect(() => {
+    const currentPath = path || window.location.pathname;
+    const attribution = attributionFrom({
+      referrer: document.referrer,
+      url: window.location.href,
+      path: currentPath,
+    });
     fetch("/api/analytics/event", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-workfusion-guest-id": guestId() },
-      body: JSON.stringify({ path: path || window.location.pathname, referrer: document.referrer }),
+      body: JSON.stringify({
+        path: currentPath,
+        referrer: document.referrer,
+        url: window.location.href,
+        sourceTag: attribution.sourceTag,
+        conversionPath: attribution.conversionPath,
+      }),
     }).catch(() => undefined);
   }, [path]);
 
