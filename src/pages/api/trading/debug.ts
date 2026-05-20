@@ -4,6 +4,7 @@ import { aiMeta, askWorkfusionAi, stringArrayField, stringField } from "@/lib/wo
 import { getSession } from "@/lib/workfusion/session";
 import { attributionFrom } from "@/lib/workfusion/source-attribution";
 import { compileCheck } from "@/lib/workfusion/worker";
+import { analyzeMqlIssues } from "@/lib/workfusion/mql-diagnostics";
 import { fixedMql } from "./_engine";
 
 export const config = {
@@ -20,15 +21,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const payload = req.body || {};
   const errorText = `${String(payload.errors || "")} ${String(payload.code || "")}`;
   const invalidStopsContext = /invalid stops|retcode\s*=?\s*10016|error\s*130|stop loss|stoploss/iu.test(errorText);
+  const issueAnalysis = analyzeMqlIssues(payload);
   const fallbackCode = fixedMql(payload);
-  const fallbackIssues = invalidStopsContext
+  const fallbackIssues = issueAnalysis.issues.length
+    ? issueAnalysis.issues
+    : invalidStopsContext
     ? [
       "Invalid stops are execution validation failures, not normal compiler errors.",
       "The EA must validate SL/TP against live Bid/Ask, current spread, stop level, and freeze level before sending the request.",
       "A small XAUUSD stop can be inside the spread even when a manual or pending-order test appears to work.",
     ]
     : ["Missing declarations or platform-specific lifecycle issues may exist in the original code"];
-  const fallbackFixes = invalidStopsContext
+  const fallbackFixes = issueAnalysis.fixes.length
+    ? issueAnalysis.fixes
+    : invalidStopsContext
     ? [
       "Add SYMBOL_TRADE_STOPS_LEVEL and SYMBOL_TRADE_FREEZE_LEVEL validation.",
       "For buy orders, validate SL below Bid and TP above Ask by enough points.",
@@ -36,7 +42,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "Log Bid, Ask, spread, SL, TP, minimum distance, retcode, and retcode description for every failed request.",
     ]
     : ["Use strict mode", "Declare account state once", "Keep entry logic inside OnTick"];
-  const fallbackSummary = invalidStopsContext
+  const fallbackSummary = issueAnalysis.kinds.length
+    ? issueAnalysis.summary
+    : invalidStopsContext
     ? "The debugger detected an MT5 invalid-stops pattern and produced a replacement EA draft with spread, stop-level, freeze-level, and retcode diagnostics."
     : "The debugger produced a complete compile-aware EA replacement with risk gates and execution logic.";
   const ai = await askWorkfusionAi({
@@ -85,6 +93,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       url,
       platform: String(req.body?.platform || ""),
       hasErrors: Boolean(String(req.body?.errors || "").trim()),
+      issueKinds: issueAnalysis.kinds,
+      resourceSlugs: issueAnalysis.resourceSlugs,
       eventSource: "debug_api",
     },
   });
@@ -96,6 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     compile,
     issues: stringArrayField(parsed.issues, fallbackIssues),
     fixes: stringArrayField(parsed.fixes, fallbackFixes),
+    resourceSlugs: issueAnalysis.resourceSlugs,
     feature: "debug",
     plan: access.plan,
     remaining: limitsAfterRun(access, "debug", allowance),

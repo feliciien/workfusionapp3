@@ -37,10 +37,28 @@
       "channel": "MQL5 Forum",
       "title": "HistoryDeals compile-error reply",
       "url": "https://www.mql5.com/en/forum/492730",
-      "websiteUrl": "https://www.workfusionapp.com/mql5-compiler-fixer",
+      "websiteUrl": "https://www.workfusionapp.com/resources/fix-mql5-history-deal-functions?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=history_deals_p0",
       "linkPolicy": "link_allowed_relevant",
       "status": "manual_required",
-      "body": "The first thing I would isolate is whether the root problem is the include or the code.\n\nIn MT5, many history/deal functions are available through the standard MQL5 API, so manually adding random HistoryDeals.mqh files can create conflicts and ambiguous calls.\n\nI would test this in order:\n1. Remove manually downloaded duplicate include files.\n2. Compile a minimal EA with the built-in history functions.\n3. Confirm you are editing inside the correct MT5 Data Folder.\n4. Avoid mixing MT4-style account/history functions with MQL5 deal-history functions.\n5. Fix the first compiler error before chasing the later cascade errors.\n\nIf useful, this is the kind of MQL5 compiler workflow Workfusion is built to help with:\nhttps://www.workfusionapp.com/mql5-compiler-fixer"
+      "body": "The first thing I would isolate is whether the root problem is the include or the history workflow.\n\nIn MT5, you usually do not need a random downloaded HistoryDeals.mqh file. The safer native path is:\n\n1. Remove duplicate or manually downloaded HistoryDeals.mqh files.\n2. Call HistorySelect(from, to) before reading closed deals.\n3. Loop through HistoryDealsTotal().\n4. Get each ticket with HistoryDealGetTicket(i).\n5. Read fields with HistoryDealGetInteger, HistoryDealGetDouble, and HistoryDealGetString.\n6. Group by DEAL_MAGIC and DEAL_SYMBOL if you are separating EA results.\n\nThe errors around MqlDeal, HistoryDealGetStruct, and ambiguous calls are often cascade errors after the wrong include or wrong API model.\n\nIf useful, I wrote a focused checklist for this exact MT5 history/deal debugging path here:\nhttps://www.workfusionapp.com/resources/fix-mql5-history-deal-functions?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=history_deals_p0"
+    },
+    {
+      "channel": "MQL5 Forum",
+      "title": "CTrade undeclared identifier reply",
+      "url": "https://www.mql5.com/en/forum/464145",
+      "websiteUrl": "https://www.workfusionapp.com/resources/mql5-ctrade-include-trade-object-setup?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=ctrade_setup_p0",
+      "linkPolicy": "link_allowed_relevant",
+      "status": "manual_required",
+      "body": "Start with the first compiler error. If trade.Buy() or Trade.Buy() is failing with undeclared identifier, check the CTrade setup before changing strategy logic.\n\nI would verify this order:\n\n1. Add #include <Trade/Trade.mqh> near the top of the EA.\n2. Declare one object globally: CTrade trade;\n3. Use the exact same object name and case everywhere. trade.Buy is not the same as Trade.Buy.\n4. Make sure the previous input or variable line ends with a semicolon before CTrade.\n5. After Buy/Sell/PositionModify, print trade.ResultRetcode() and trade.ResultRetcodeDescription().\n\nIf useful, I wrote a focused CTrade setup checklist here:\nhttps://www.workfusionapp.com/resources/mql5-ctrade-include-trade-object-setup?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=ctrade_setup_p0"
+    },
+    {
+      "channel": "MQL5 Forum",
+      "title": "iMA CopyBuffer handle reply",
+      "url": "https://www.mql5.com/en/forum/459939",
+      "websiteUrl": "https://www.workfusionapp.com/resources/fix-mql5-copybuffer-indicator-handle?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=copybuffer_handle_p0",
+      "linkPolicy": "link_allowed_relevant",
+      "status": "manual_required",
+      "body": "The key point is that MQL5 indicator functions usually return a handle, not the final indicator value like many MT4 examples.\n\nI would structure it this way:\n\n1. Create the indicator handle once in OnInit, for example iMA(...).\n2. Check the handle against INVALID_HANDLE.\n3. In OnTick, call CopyBuffer(handle, bufferIndex, startPosition, count, array).\n4. Check that CopyBuffer returned enough values before reading the array.\n5. Use ArraySetAsSeries if you want [0] to represent the current bar and [1] the previous bar.\n6. Release the handle in OnDeinit.\n\nIf the values look reversed, first confirm the array direction and start position before changing the strategy rule.\n\nIf useful, I wrote a focused MQL5 CopyBuffer/indicator-handle checklist here:\nhttps://www.workfusionapp.com/resources/fix-mql5-copybuffer-indicator-handle?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=copybuffer_handle_p0"
     },
     {
       "channel": "Forex Factory",

@@ -1,4 +1,5 @@
 import type { WorkerCheck } from "./types";
+import { detectMqlIssueKinds } from "./mql-diagnostics";
 
 export function compileCheck(code: string): WorkerCheck {
   const diagnostics: string[] = [];
@@ -45,17 +46,34 @@ export function compileCheck(code: string): WorkerCheck {
     diagnostics.push("No max-trades-per-day guard found.");
     score -= 10;
   }
-  if (/invalid stops|retcode\s*=?\s*10016|error\s*130/i.test(source) && !/SYMBOL_TRADE_STOPS_LEVEL|MODE_STOPLEVEL/i.test(source)) {
+  const issueKinds = detectMqlIssueKinds({ code: source });
+  if (issueKinds.includes("invalid_stops") && !/SYMBOL_TRADE_STOPS_LEVEL|MODE_STOPLEVEL/i.test(source)) {
     diagnostics.push("Invalid-stops context detected but no broker stop-level validation found.");
     score -= 18;
   }
-  if (/invalid stops|retcode\s*=?\s*10016|error\s*130/i.test(source) && !/SYMBOL_TRADE_FREEZE_LEVEL|MODE_FREEZELEVEL/i.test(source)) {
+  if (issueKinds.includes("invalid_stops") && !/SYMBOL_TRADE_FREEZE_LEVEL|MODE_FREEZELEVEL/i.test(source)) {
     diagnostics.push("Invalid-stops context detected but no freeze-level validation found.");
     score -= 10;
   }
-  if (/invalid stops|retcode\s*=?\s*10016|error\s*130/i.test(source) && !/ResultRetcode|GetLastError|retcode/i.test(source)) {
+  if (issueKinds.includes("invalid_stops") && !/ResultRetcode|GetLastError|retcode/i.test(source)) {
     diagnostics.push("Invalid-stops context detected but no trade retcode logging found.");
     score -= 8;
+  }
+  if (issueKinds.includes("ctrade_setup")) {
+    diagnostics.push("CTrade setup issue detected. Check Trade.mqh include, CTrade object declaration, object name case, and semicolons before CTrade.");
+    score -= 16;
+  }
+  if (issueKinds.includes("mt4_to_mql5_migration")) {
+    diagnostics.push("MT4-style order API detected in an MQL5 context. Migrate OP_BUY/OP_SELL/MarketInfo/old OrderSend patterns to CTrade or MqlTradeRequest.");
+    score -= 18;
+  }
+  if (issueKinds.includes("indicator_handle_copybuffer")) {
+    diagnostics.push("MQL4-style indicator call detected. In MQL5, create indicator handles and read values with CopyBuffer.");
+    score -= 14;
+  }
+  if (issueKinds.includes("history_deals")) {
+    diagnostics.push("History/deal access issue detected. Use HistorySelect, HistoryDealGetTicket, and HistoryDealGetInteger/Double/String instead of duplicate HistoryDeals includes or MT4-style helpers.");
+    score -= 12;
   }
 
   if (diagnostics.length === 0) diagnostics.push("Static compile pre-check passed. Run MetaEditor before live use.");
