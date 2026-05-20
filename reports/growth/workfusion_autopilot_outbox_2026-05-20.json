@@ -28,10 +28,10 @@
       "channel": "MQL5 Forum",
       "title": "Invalid stops reply",
       "url": "https://www.mql5.com/en/forum/509214",
-      "websiteUrl": "https://www.workfusionapp.com",
-      "linkPolicy": "no_link_recommended",
+      "websiteUrl": "https://www.workfusionapp.com/resources/fix-invalid-stops-mt5-ea?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=invalid_stops_p0",
+      "linkPolicy": "link_allowed_relevant",
       "status": "manual_required",
-      "body": "This is probably not the EA blocking the stop by itself. It is usually the trade server rejecting the stop distance at the exact moment the EA sends or modifies the order. Check Bid/Ask, spread, stop level, freeze level, normalized prices, and print exact retcodes for every failed modify."
+      "body": "This is probably not the EA refusing the stop by itself. The trade server is rejecting the stop distance at the exact moment the EA sends or modifies the order.\n\nFor XAUUSD, a 10 point / 1 pip stop can easily become invalid if the spread is wider than the stop distance, or if the EA calculates the stop from the wrong side of the quote.\n\nI would debug it this way:\n\n1. Print Bid and Ask immediately before sending the order or modify request.\n2. Print current spread in points.\n3. Print SYMBOL_TRADE_STOPS_LEVEL and SYMBOL_TRADE_FREEZE_LEVEL.\n4. For a buy position, confirm SL is below Bid by enough points.\n5. For a sell position, confirm SL is above Ask by enough points.\n6. Normalize SL/TP with the symbol digits before sending.\n7. Print the exact retcode and request values for every failed trade request.\n\nThe important point: pending orders and manual tests can appear to work because the quote/spread changed. The EA must validate the stop against the live Bid/Ask and spread at the exact execution moment.\n\nIf useful, I wrote a focused checklist for this exact MT5 invalid-stops debugging path here:\nhttps://www.workfusionapp.com/resources/fix-invalid-stops-mt5-ea?utm_source=mql5_forum&utm_medium=manual_reply&utm_campaign=invalid_stops_p0"
     },
     {
       "channel": "MQL5 Forum",
