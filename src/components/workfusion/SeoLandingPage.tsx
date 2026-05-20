@@ -34,16 +34,11 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
               </div>
             ))}
           </div>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <a href="/#console" className="rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
-              Open EA console
-            </a>
-            <a href="/pricing" className="rounded-lg border border-white/10 bg-zinc-950 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-900">
-              Compare plans
-            </a>
-          </div>
+          <a href="#workfusion-primary-cta" className="mt-7 inline-flex rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
+            Paste compiler errors / Generate EA draft / Get risk check
+          </a>
         </div>
-        <LeadCaptureForm source={page.source} persona={page.persona} />
+        <LeadCaptureForm source={page.source} persona={page.persona} defaultIntent={page.slug.includes("risk") ? "risk_check" : page.slug.includes("generator") ? "ea_draft" : "compiler_error"} />
       </section>
 
       <section className="border-y border-white/10 bg-zinc-950">

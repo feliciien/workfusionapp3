@@ -46,8 +46,11 @@ export default function ResourcesPage() {
             <Metric label="Clusters" value="5" />
             <Metric label="Intent" value="High" />
           </div>
+          <a href="#workfusion-primary-cta" className="mt-7 inline-flex rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
+            Paste compiler errors / Generate EA draft / Get risk check
+          </a>
         </div>
-        <LeadCaptureForm source="resources_hub" persona="mq5_developer" />
+        <LeadCaptureForm source="resources_hub" persona="mq5_developer" defaultIntent="compiler_error" />
       </section>
 
       <section className="border-y border-white/10 bg-zinc-950">

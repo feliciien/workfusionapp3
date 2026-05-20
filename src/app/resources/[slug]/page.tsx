@@ -64,8 +64,15 @@ export default async function ResourceGuidePage({ params }: ResourceGuidePagePro
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">Search intent</p>
               <p className="mt-3 text-sm leading-6 text-zinc-300">{guide.searchIntent}</p>
             </div>
+            <a href="#workfusion-primary-cta" className="mt-7 inline-flex rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
+              Paste compiler errors / Generate EA draft / Get risk check
+            </a>
           </div>
-          <LeadCaptureForm source={guide.source} persona={guide.persona} />
+          <LeadCaptureForm
+            source={guide.source}
+            persona={guide.persona}
+            defaultIntent={guide.cluster === "EA Generation" ? "ea_draft" : guide.cluster === "Prop Firm Risk" ? "risk_check" : "compiler_error"}
+          />
         </section>
 
         <section className="border-y border-white/10 bg-zinc-950">
@@ -110,8 +117,8 @@ export default async function ResourceGuidePage({ params }: ResourceGuidePagePro
               <h2 className="text-2xl font-semibold text-white">Use the tool</h2>
               <p className="mt-3 text-sm leading-7 text-emerald-50">{guide.cta}</p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <a href="/#console" className="rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
-                  Open EA console
+                <a href="#workfusion-primary-cta" className="rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
+                  Send me the EA workflow
                 </a>
                 <a href={`/${guide.pillarSlug}`} className="rounded-lg border border-white/10 bg-zinc-950 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-900">
                   Open related tool page
@@ -153,4 +160,3 @@ function Info({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

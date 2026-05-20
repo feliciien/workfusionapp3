@@ -7,6 +7,7 @@ type LeadCaptureFormProps = {
   source: string;
   persona?: string;
   compact?: boolean;
+  defaultIntent?: "compiler_error" | "ea_draft" | "risk_check";
 };
 
 type FormState = {
@@ -33,13 +34,20 @@ function guestId() {
   }
 }
 
-export function LeadCaptureForm({ source, persona = "mq5_developer", compact = false }: LeadCaptureFormProps) {
+const intentOptions = [
+  { value: "compiler_error", label: "Paste compiler errors" },
+  { value: "ea_draft", label: "Generate EA draft" },
+  { value: "risk_check", label: "Get risk check" },
+] as const;
+
+export function LeadCaptureForm({ source, persona = "mq5_developer", compact = false, defaultIntent = "compiler_error" }: LeadCaptureFormProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(persona);
+  const [intent, setIntent] = useState(defaultIntent);
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState<FormState>({
     status: "idle",
-    message: "Get EA builder updates, compiler fixes, and launch notes.",
+    message: "Choose the workflow you want, then opt in so the CRM source is measurable.",
   });
 
   async function submit() {
@@ -56,7 +64,16 @@ export function LeadCaptureForm({ source, persona = "mq5_developer", compact = f
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-workfusion-guest-id": guestId() },
-        body: JSON.stringify({ email, persona: role, source, consent }),
+        body: JSON.stringify({
+          email,
+          persona: role,
+          source,
+          consent,
+          intent,
+          cta: "primary_conversion_cta",
+          leadStatus: "new",
+          page: window.location.pathname,
+        }),
       });
       const data = await response.json();
       if (!response.ok || data.error) {
@@ -70,11 +87,27 @@ export function LeadCaptureForm({ source, persona = "mq5_developer", compact = f
   }
 
   return (
-    <div className={`rounded-lg border border-white/10 bg-zinc-950 p-5 ${compact ? "" : "shadow-2xl shadow-black/20"}`}>
-      <p className="text-sm font-semibold text-white">Join the EA builder list</p>
+    <div id="workfusion-primary-cta" className={`rounded-lg border border-emerald-300/20 bg-zinc-950 p-5 ${compact ? "" : "shadow-2xl shadow-black/20"}`}>
+      <p className="text-sm font-semibold text-emerald-200">Paste compiler errors / Generate EA draft / Get risk check</p>
       <p className="mt-2 text-sm leading-6 text-zinc-400">
-        Opt-in only. No scraped lists, no purchased contacts, no trading promises.
+        Short opt-in only. We store one source, one intent, and one new lead status. No scraped lists, no purchased contacts, no trading promises.
       </p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        {intentOptions.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() => setIntent(item.value)}
+            className={`rounded-lg border px-3 py-2 text-left text-xs font-semibold ${
+              intent === item.value
+                ? "border-emerald-300 bg-emerald-300 text-[#101112]"
+                : "border-white/10 bg-[#101112] text-zinc-300 hover:border-emerald-300/50"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-[1.1fr_0.9fr]">
         <input
           value={email}

@@ -11,6 +11,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const email = normalizeEmail(req.body?.email);
   const persona = String(req.body?.persona || "").trim();
   const source = String(req.body?.source || "website_lead_form").trim();
+  const intent = String(req.body?.intent || "unknown").trim().slice(0, 80);
+  const cta = String(req.body?.cta || "primary_conversion_cta").trim().slice(0, 120);
+  const leadStatus = String(req.body?.leadStatus || "new").trim().slice(0, 40);
+  const page = String(req.body?.page || req.headers.referer || "/").trim().slice(0, 500);
   const consent = req.body?.consent === true;
 
   if (!isValidEmail(email)) {
@@ -28,8 +32,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     consentText: CONSENT_TEXT,
     userAgent: req.headers["user-agent"],
     metadata: {
-      page: req.headers.referer || "/",
+      page,
       acquisition: "opt_in",
+      intent,
+      cta,
+      leadStatus,
+      eventSource: source,
     },
   });
   await recordUsageEvent({
@@ -39,7 +47,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     metadata: {
       persona,
       source,
-      page: req.headers.referer || "/",
+      intent,
+      cta,
+      leadStatus,
+      page,
     },
   });
 

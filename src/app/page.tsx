@@ -95,6 +95,12 @@ const platforms = [
   { label: "MT4 (.mq4)", value: "mt4" },
 ];
 
+const leadIntentOptions = [
+  { value: "compiler_error", label: "Paste compiler errors" },
+  { value: "ea_draft", label: "Generate EA draft" },
+  { value: "risk_check", label: "Get risk check" },
+];
+
 const proofCards = [
   ["Generate", "Turn a plain strategy brief into a complete MQL draft with risk controls."],
   ["Debug", "Paste compiler output and get a fixed EA replacement plus clear fix notes."],
@@ -434,6 +440,7 @@ export default function Home() {
   const [supportStatus, setSupportStatus] = useState<FormStatus>({ status: "idle", message: "Send bugs, compiler errors, billing issues, or product feedback." });
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPersona, setLeadPersona] = useState("mq5_developer");
+  const [leadIntent, setLeadIntent] = useState("compiler_error");
   const [leadConsent, setLeadConsent] = useState(false);
   const [leadStatus, setLeadStatus] = useState<FormStatus>({ status: "idle", message: "Join only with explicit opt-in. No scraped list, no purchased database." });
 
@@ -691,7 +698,7 @@ export default function Home() {
     }
   }
 
-  async function joinLeadList(source = "homepage_ea_builder_updates") {
+  async function joinLeadList(source = "homepage_ea_builder_updates", intent = leadIntent) {
     setLeadStatus({ status: "loading", message: "Saving opt-in email." });
     try {
       const response = await fetch("/api/leads", {
@@ -702,6 +709,10 @@ export default function Home() {
           persona: leadPersona,
           source,
           consent: leadConsent,
+          intent,
+          cta: "primary_conversion_cta",
+          leadStatus: "new",
+          page: typeof window !== "undefined" ? window.location.pathname : "/",
         }),
       });
       const data = await response.json();
@@ -712,7 +723,7 @@ export default function Home() {
         return;
       }
       setLeadStatus({ status: "success", message: data.message || "You are on the update list." });
-      trackUsageEvent("lead_opt_in_client_confirmed", source, { persona: leadPersona }).catch(() => undefined);
+      trackUsageEvent("lead_opt_in_client_confirmed", source, { persona: leadPersona, intent }).catch(() => undefined);
       notify({ tone: "success", title: "Opt-in saved", body: "Workfusion EA builder updates are enabled for this email." });
     } catch {
       setLeadStatus({ status: "error", message: "Network request failed while saving opt-in." });
@@ -818,8 +829,24 @@ export default function Home() {
             </Button>
           </div>
           <div className="mt-5 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4">
-            <p className="text-sm font-semibold text-emerald-100">Get the EA debugging checklist and product updates.</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">Opt-in only. Useful for compiler errors, generated EA drafts, and risk/readiness workflow updates.</p>
+            <p className="text-sm font-semibold text-emerald-100">Paste compiler errors / Generate EA draft / Get risk check</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Short opt-in only. One source, one intent, one new lead status in the CRM.</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {leadIntentOptions.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setLeadIntent(item.value)}
+                  className={`rounded-lg border px-3 py-2 text-left text-xs font-semibold ${
+                    leadIntent === item.value
+                      ? "border-emerald-300 bg-emerald-300 text-[#101112]"
+                      : "border-white/10 bg-[#101112] text-zinc-300 hover:border-emerald-300/50"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
               <input
                 value={leadEmail}
@@ -829,10 +856,10 @@ export default function Home() {
               />
               <Button
                 disabled={leadStatus.status === "loading"}
-                onClick={() => joinLeadList("homepage_hero_debug_checklist")}
+                onClick={() => joinLeadList("homepage_hero_primary_cta", leadIntent)}
                 className="h-12 rounded-lg bg-emerald-300 px-5 text-[#101112] hover:bg-emerald-200"
               >
-                Send checklist
+                Continue
               </Button>
             </div>
             <label className="mt-3 flex items-start gap-3 text-sm leading-6 text-zinc-300">
