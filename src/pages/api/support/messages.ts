@@ -3,7 +3,7 @@ import { analyzeSupportMessage } from "@/lib/workfusion/openai";
 import { sendSupportNotification } from "@/lib/workfusion/outbox";
 import { getPersistentAccess } from "@/lib/workfusion/account-store";
 import { getSession, isValidEmail, normalizeEmail } from "@/lib/workfusion/session";
-import { listSupportMessages, saveSupportMessage } from "@/lib/workfusion/support-store";
+import { listSupportMessages, saveSupportMessage, updateSupportMessage } from "@/lib/workfusion/support-store";
 
 function ownerAllowed(req: NextApiRequest) {
   const session = getSession(req);
@@ -16,6 +16,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!ownerAllowed(req)) return res.status(401).json({ error: "owner_auth_required" });
     const data = await listSupportMessages(Number(req.query.limit || 50));
     return res.status(200).json(data);
+  }
+
+  if (req.method === "PATCH") {
+    if (!ownerAllowed(req)) return res.status(401).json({ error: "owner_auth_required" });
+    const support = await updateSupportMessage({
+      id: String(req.body?.id || ""),
+      status: req.body?.status ? String(req.body.status) : undefined,
+      blocker: req.body?.blocker === undefined ? undefined : String(req.body.blocker),
+      ownerNotes: req.body?.ownerNotes === undefined ? undefined : String(req.body.ownerNotes),
+      replyDraft: req.body?.replyDraft === undefined ? undefined : String(req.body.replyDraft),
+    });
+    if (!support) return res.status(404).json({ error: "support_not_found" });
+    return res.status(200).json({ ok: true, support });
   }
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });

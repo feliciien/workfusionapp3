@@ -27,6 +27,27 @@ export type LeadInput = {
   metadata?: Record<string, unknown>;
 };
 
+export type SupportMessageRecord = {
+  id: string;
+  email: string | null;
+  plan: string | null;
+  category: string | null;
+  severity: string | null;
+  subject: string | null;
+  message: string;
+  page: string | null;
+  ai: {
+    summary: string | null;
+    category: string | null;
+    priority: string | null;
+    suggestedAction: string | null;
+    ownerBrief: string | null;
+  };
+  status: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
 export async function saveSupportMessage(input: SupportMessageInput) {
   const id = `support_${randomUUID().replace(/-/gu, "").slice(0, 18)}`;
   const email = normalizeEmail(input.email || input.session.email);
@@ -82,26 +103,10 @@ export async function saveSupportMessage(input: SupportMessageInput) {
 
 export async function listSupportMessages(limit = 50) {
   await ensureWorkfusionSchema();
-  const result = await query<{
-    id: string;
-    email: string | null;
-    plan: string | null;
-    category: string | null;
-    severity: string | null;
-    subject: string | null;
-    message: string;
-    page: string | null;
-    ai_summary: string | null;
-    ai_category: string | null;
-    ai_priority: string | null;
-    ai_suggested_action: string | null;
-    ai_owner_brief: string | null;
-    status: string;
-    created_at: Date;
-  }>(
+  const result = await query<SupportRow>(
     `
     select id, email, plan, category, severity, subject, message, page,
-      ai_summary, ai_category, ai_priority, ai_suggested_action, ai_owner_brief, status, created_at
+      ai_summary, ai_category, ai_priority, ai_suggested_action, ai_owner_brief, status, metadata, created_at
     from wf_support_messages
     order by created_at desc
     limit $1
@@ -111,26 +116,44 @@ export async function listSupportMessages(limit = 50) {
 
   return {
     storage: databaseConfigured() ? "postgres" : "local-json",
-    messages: (result?.rows || []).map((row) => ({
-      id: row.id,
-      email: row.email,
-      plan: row.plan,
-      category: row.category,
-      severity: row.severity,
-      subject: row.subject,
-      message: row.message,
-      page: row.page,
-      ai: {
-        summary: row.ai_summary,
-        category: row.ai_category,
-        priority: row.ai_priority,
-        suggestedAction: row.ai_suggested_action,
-        ownerBrief: row.ai_owner_brief,
-      },
-      status: row.status,
-      createdAt: row.created_at.toISOString(),
-    })),
+    messages: (result?.rows || []).map(mapSupportRow),
   };
+}
+
+const allowedSupportStatuses = new Set(["open", "replied", "blocked", "closed"]);
+
+export async function updateSupportMessage(input: {
+  id: string;
+  status?: string;
+  blocker?: string;
+  ownerNotes?: string;
+  replyDraft?: string;
+}) {
+  await ensureWorkfusionSchema();
+  const status = input.status && allowedSupportStatuses.has(input.status) ? input.status : undefined;
+  const metadataPatch: Record<string, unknown> = {
+    ownerUpdatedAt: new Date().toISOString(),
+  };
+
+  if (input.blocker !== undefined) metadataPatch.blocker = cleanText(input.blocker, 80) || "none";
+  if (input.ownerNotes !== undefined) metadataPatch.ownerNotes = String(input.ownerNotes || "").slice(0, 2000);
+  if (input.replyDraft !== undefined) metadataPatch.replyDraft = String(input.replyDraft || "").slice(0, 3000);
+
+  const result = await query<SupportRow>(
+    `
+    update wf_support_messages
+    set
+      status = coalesce($2, status),
+      metadata = metadata || $3::jsonb,
+      updated_at = now()
+    where id = $1
+    returning id, email, plan, category, severity, subject, message, page,
+      ai_summary, ai_category, ai_priority, ai_suggested_action, ai_owner_brief, status, metadata, created_at
+    `,
+    [input.id, status || null, JSON.stringify(metadataPatch)],
+  );
+  const row = result?.rows[0];
+  return row ? mapSupportRow(row) : null;
 }
 
 export async function saveMarketingLead(input: LeadInput) {
@@ -174,4 +197,46 @@ export async function saveMarketingLead(input: LeadInput) {
 
 function cleanText(value: unknown, max: number) {
   return String(value || "").replace(/\s+/gu, " ").trim().slice(0, max);
+}
+
+type SupportRow = {
+  id: string;
+  email: string | null;
+  plan: string | null;
+  category: string | null;
+  severity: string | null;
+  subject: string | null;
+  message: string;
+  page: string | null;
+  ai_summary: string | null;
+  ai_category: string | null;
+  ai_priority: string | null;
+  ai_suggested_action: string | null;
+  ai_owner_brief: string | null;
+  status: string;
+  metadata: Record<string, unknown>;
+  created_at: Date;
+};
+
+function mapSupportRow(row: SupportRow): SupportMessageRecord {
+  return {
+    id: row.id,
+    email: row.email,
+    plan: row.plan,
+    category: row.category,
+    severity: row.severity,
+    subject: row.subject,
+    message: row.message,
+    page: row.page,
+    ai: {
+      summary: row.ai_summary,
+      category: row.ai_category,
+      priority: row.ai_priority,
+      suggestedAction: row.ai_suggested_action,
+      ownerBrief: row.ai_owner_brief,
+    },
+    status: row.status,
+    metadata: row.metadata || {},
+    createdAt: row.created_at.toISOString(),
+  };
 }

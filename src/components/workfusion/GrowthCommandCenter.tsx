@@ -17,11 +17,32 @@ type GrowthLead = {
   lastContactedAt: string | null;
 };
 
+type GrowthSupportTicket = {
+  id: string;
+  email: string | null;
+  plan: string | null;
+  category: string | null;
+  severity: string | null;
+  subject: string | null;
+  message: string;
+  page: string | null;
+  ai: {
+    summary: string | null;
+    category: string | null;
+    priority: string | null;
+    suggestedAction: string | null;
+    ownerBrief: string | null;
+  };
+  status: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+};
+
 type GrowthSnapshot = {
   storage: string;
   counts: Record<string, number>;
   leads: GrowthLead[];
-  support: Array<{ id: string; email: string | null; category: string | null; severity: string | null; subject: string | null; status: string; createdAt: string }>;
+  support: GrowthSupportTicket[];
   segments: Array<{ persona: string; count: number }>;
   sources: Array<{ source: string; count: number }>;
   pages: Array<{ path: string; visits: number }>;
@@ -53,6 +74,8 @@ type GrowthSnapshot = {
 };
 
 const stages = ["new", "researching", "contacted", "trial", "customer", "nurture", "closed"];
+const supportStatuses = ["open", "replied", "blocked", "closed"];
+const blockerTags = ["none", "compiler_error", "generated_code_quality", "backtest_confusion", "billing", "login", "download", "mobile", "missing_feature", "ux_confusion"];
 
 export function GrowthCommandCenter() {
   const [token, setToken] = useState("");
@@ -60,6 +83,7 @@ export function GrowthCommandCenter() {
   const [status, setStatus] = useState("Enter owner token or use an owner session, then load the growth desk.");
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState("");
+  const [supportDrafts, setSupportDrafts] = useState<Record<string, { ownerNotes: string; replyDraft: string; blocker: string }>>({});
 
   const hotLeads = useMemo(() => {
     return [...(snapshot?.leads || [])].sort((a, b) => b.score - a.score || a.stage.localeCompare(b.stage)).slice(0, 12);
@@ -109,6 +133,66 @@ export function GrowthCommandCenter() {
       };
     });
     setStatus(`Updated ${data.lead.email}.`);
+  }
+
+  function supportDraft(ticket: GrowthSupportTicket) {
+    const metadata = ticket.metadata || {};
+    const existing = supportDrafts[ticket.id];
+    return {
+      ownerNotes: existing?.ownerNotes ?? String(metadata.ownerNotes || ""),
+      replyDraft: existing?.replyDraft ?? String(metadata.replyDraft || buildSupportReplyDraft(ticket)),
+      blocker: existing?.blocker ?? String(metadata.blocker || "none"),
+    };
+  }
+
+  function setSupportDraft(ticket: GrowthSupportTicket, patch: Partial<{ ownerNotes: string; replyDraft: string; blocker: string }>) {
+    setSupportDrafts((current) => ({
+      ...current,
+      [ticket.id]: {
+        ...supportDraft(ticket),
+        ...patch,
+      },
+    }));
+  }
+
+  async function updateSupport(ticket: GrowthSupportTicket, patch: Partial<Pick<GrowthSupportTicket, "status">> & { blocker?: string; ownerNotes?: string; replyDraft?: string }) {
+    const draft = supportDraft(ticket);
+    const response = await fetch("/api/support/messages", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "x-workfusion-admin-token": token } : {}),
+      },
+      body: JSON.stringify({
+        id: ticket.id,
+        status: patch.status,
+        blocker: patch.blocker ?? draft.blocker,
+        ownerNotes: patch.ownerNotes ?? draft.ownerNotes,
+        replyDraft: patch.replyDraft ?? draft.replyDraft,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      setStatus(data.error || "Support update failed.");
+      return;
+    }
+    setSnapshot((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        counts: {
+          ...current.counts,
+          open_support: current.support.filter((item) => item.id === ticket.id ? data.support.status === "open" : item.status === "open").length,
+        },
+        support: current.support.map((item) => (item.id === ticket.id ? data.support : item)),
+      };
+    });
+    setSupportDrafts((current) => {
+      const next = { ...current };
+      delete next[ticket.id];
+      return next;
+    });
+    setStatus(`Updated support ticket ${ticket.id}.`);
   }
 
   async function copyPost(id: string, text: string) {
@@ -333,13 +417,71 @@ export function GrowthCommandCenter() {
               </Panel>
               <Panel title="Recent support">
                 <div className="space-y-3">
-                  {snapshot.support.map((ticket) => (
-                    <div key={ticket.id} className="rounded-lg border border-white/10 bg-[#101112] p-4">
-                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">{ticket.severity || "normal"} | {ticket.category || "support"}</p>
-                      <p className="mt-1 text-sm font-semibold text-white">{ticket.subject || ticket.id}</p>
-                      <p className="mt-1 text-xs text-zinc-500">{ticket.email || "anonymous"} | {ticket.status}</p>
-                    </div>
-                  ))}
+                  {snapshot.support.length === 0 ? (
+                    <p className="rounded-lg border border-white/10 bg-[#101112] p-4 text-sm text-zinc-400">
+                      No support tickets yet. When a user reports a bug or compiler issue, it will appear here with AI triage.
+                    </p>
+                  ) : (
+                    snapshot.support.map((ticket) => {
+                      const draft = supportDraft(ticket);
+                      return (
+                        <div key={ticket.id} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-300">{ticket.severity || "normal"} | {ticket.category || "support"}</p>
+                            <p className="rounded-md border border-white/10 px-2 py-1 text-xs text-zinc-300">{ticket.status}</p>
+                          </div>
+                          <p className="mt-2 text-sm font-semibold text-white">{ticket.subject || ticket.id}</p>
+                          <p className="mt-1 text-xs text-zinc-500">{ticket.email || "anonymous"} | {ticket.plan || "free"} | {new Date(ticket.createdAt).toLocaleString()}</p>
+                          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-zinc-300">{ticket.message}</p>
+                          {ticket.ai?.ownerBrief && <p className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-300/10 p-3 text-sm leading-6 text-cyan-100">{ticket.ai.ownerBrief}</p>}
+                          {ticket.ai?.suggestedAction && <p className="mt-2 text-xs text-zinc-400">Suggested action: {ticket.ai.suggestedAction}</p>}
+                          {ticket.page && <p className="mt-2 text-xs text-zinc-500">Page: {ticket.page}</p>}
+                          <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <select
+                              value={ticket.status}
+                              onChange={(event) => updateSupport(ticket, { status: event.target.value })}
+                              className="rounded-md border border-white/10 bg-[#101112] px-2 py-2 text-sm"
+                            >
+                              {supportStatuses.map((item) => <option key={item} value={item}>{item}</option>)}
+                            </select>
+                            <select
+                              value={draft.blocker}
+                              onChange={(event) => setSupportDraft(ticket, { blocker: event.target.value })}
+                              className="rounded-md border border-white/10 bg-[#101112] px-2 py-2 text-sm"
+                            >
+                              {blockerTags.map((item) => <option key={item} value={item}>{item}</option>)}
+                            </select>
+                          </div>
+                          <textarea
+                            value={draft.ownerNotes}
+                            onChange={(event) => setSupportDraft(ticket, { ownerNotes: event.target.value })}
+                            placeholder="Owner note: what is the blocker and what should be fixed?"
+                            className="mt-3 min-h-20 w-full rounded-md border border-white/10 bg-black/20 p-3 text-sm text-white outline-none focus:border-emerald-300"
+                          />
+                          <textarea
+                            value={draft.replyDraft}
+                            onChange={(event) => setSupportDraft(ticket, { replyDraft: event.target.value })}
+                            placeholder="Reply draft to user"
+                            className="mt-3 min-h-24 w-full rounded-md border border-white/10 bg-black/20 p-3 text-sm text-white outline-none focus:border-cyan-300"
+                          />
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button onClick={() => copyPost(`${ticket.id}-reply`, draft.replyDraft)} className="rounded-md bg-emerald-300 px-3 py-2 text-xs font-semibold text-[#101112]">
+                              {copied === `${ticket.id}-reply` ? "copied" : "copy reply"}
+                            </button>
+                            <button onClick={() => updateSupport(ticket, { status: "replied" })} className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-200 hover:border-cyan-300">
+                              mark replied
+                            </button>
+                            <button onClick={() => updateSupport(ticket, { status: "blocked", blocker: draft.blocker === "none" ? "ux_confusion" : draft.blocker })} className="rounded-md border border-amber-300/40 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10">
+                              tag blocker
+                            </button>
+                            <button onClick={() => updateSupport(ticket, { status: "closed" })} className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-zinc-400 hover:text-white">
+                              close
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </Panel>
             </section>
@@ -375,4 +517,21 @@ function Row({ label, value }: { label: string; value: number }) {
       <span className="font-semibold text-white">{value}</span>
     </div>
   );
+}
+
+function buildSupportReplyDraft(ticket: GrowthSupportTicket) {
+  const name = ticket.email ? ticket.email.split("@")[0] : "there";
+  const action = ticket.ai?.suggestedAction || "I am reviewing this and will use it to improve the workflow.";
+  return [
+    `Hi ${name},`,
+    "",
+    "Thanks for reporting this. I received the issue and I am reviewing it from the Workfusion support desk.",
+    "",
+    `Current action: ${action}`,
+    "",
+    "If you can, please send the exact compiler output, the EA code snippet involved, and what you expected to happen. That will help me reproduce and fix it faster.",
+    "",
+    "Best,",
+    "Felicien",
+  ].join("\n");
 }

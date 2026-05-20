@@ -25,10 +25,21 @@ export type GrowthSnapshot = {
   support: Array<{
     id: string;
     email: string | null;
+    plan: string | null;
     category: string | null;
     severity: string | null;
     subject: string | null;
+    message: string;
+    page: string | null;
+    ai: {
+      summary: string | null;
+      category: string | null;
+      priority: string | null;
+      suggestedAction: string | null;
+      ownerBrief: string | null;
+    };
     status: string;
+    metadata: Record<string, unknown>;
     createdAt: string;
   }>;
   segments: Array<{ persona: string; count: number }>;
@@ -116,13 +127,23 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
   const support = await query<{
     id: string;
     email: string | null;
+    plan: string | null;
     category: string | null;
     severity: string | null;
     subject: string | null;
+    message: string;
+    page: string | null;
+    ai_summary: string | null;
+    ai_category: string | null;
+    ai_priority: string | null;
+    ai_suggested_action: string | null;
+    ai_owner_brief: string | null;
     status: string;
+    metadata: Record<string, unknown>;
     created_at: Date;
   }>(`
-    select id, email, category, severity, subject, status, created_at
+    select id, email, plan, category, severity, subject, message, page,
+      ai_summary, ai_category, ai_priority, ai_suggested_action, ai_owner_brief, status, metadata, created_at
     from wf_support_messages
     order by created_at desc
     limit 20
@@ -161,10 +182,21 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     support: (support?.rows || []).map((row) => ({
       id: row.id,
       email: row.email,
+      plan: row.plan,
       category: row.category,
       severity: row.severity,
       subject: row.subject,
+      message: row.message,
+      page: row.page,
+      ai: {
+        summary: row.ai_summary,
+        category: row.ai_category,
+        priority: row.ai_priority,
+        suggestedAction: row.ai_suggested_action,
+        ownerBrief: row.ai_owner_brief,
+      },
       status: row.status,
+      metadata: row.metadata || {},
       createdAt: row.created_at.toISOString(),
     })),
     segments: (segments?.rows || []).map((row) => ({ persona: row.persona || "unknown", count: Number(row.count || 0) })),
