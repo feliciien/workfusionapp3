@@ -25,6 +25,7 @@ export default function ResourcesPage() {
           <nav className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
             <a href="/#console" className="hover:text-white">Console</a>
             <a href="/pricing" className="hover:text-white">Pricing</a>
+            <a href="/updates" className="hover:text-white">Build notes</a>
             <a href="/mql5-compiler-fixer" className="hover:text-white">Compiler fixer</a>
           </nav>
         </div>

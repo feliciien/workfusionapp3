@@ -1,0 +1,36 @@
+{
+  "date": "2026-05-20",
+  "policy": {
+    "ownedChannelsAutopost": true,
+    "thirdPartyAutopost": false,
+    "reason": "External posting to LinkedIn/forums requires official API access, channel rules, rate limits, and human-quality checks. The autopilot prepares drafts but does not bot-post into third-party communities."
+  },
+  "publishedOwned": [
+    {
+      "channel": "workfusion_updates",
+      "url": "/updates",
+      "buildNoteId": "2026-05-20-growth-autopilot-ea-debugging",
+      "status": "already_present"
+    }
+  ],
+  "manualReviewQueue": [
+    {
+      "channel": "LinkedIn",
+      "title": "Founder build note",
+      "status": "manual_required",
+      "body": "I am building Workfusionapp for MT4/MT5 EA builders. The current workflow: describe an EA idea, generate a complete MQL draft, paste MetaEditor compiler errors, get a corrected draft, risk-check before manual backtesting, and download the MQL output. It is not a signal service and does not promise trading performance. Looking for serious MQL4/MQL5 builders who want to test it and send direct feedback."
+    },
+    {
+      "channel": "MQL5 Forum",
+      "title": "Invalid stops reply",
+      "status": "manual_required",
+      "body": "This is probably not the EA blocking the stop by itself. It is usually the trade server rejecting the stop distance at the exact moment the EA sends or modifies the order. Check Bid/Ask, spread, stop level, freeze level, normalized prices, and print exact retcodes for every failed modify."
+    },
+    {
+      "channel": "Forex Factory",
+      "title": "Magic-number evaluation reply",
+      "status": "manual_required",
+      "body": "This can be done from MT5 history if each EA uses a unique Magic Number. Use HistorySelect, loop through deals, group by DEAL_MAGIC, and sum profit/swap/commission while filtering entry types so you do not double-count."
+    }
+  ]
+}

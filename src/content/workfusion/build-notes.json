@@ -1,0 +1,42 @@
+[
+  {
+    "id": "2026-05-20-growth-autopilot-ea-debugging",
+    "date": "2026-05-20",
+    "title": "What Workfusion should help EA builders fix first",
+    "summary": "The highest-intent EA problems are compiler errors, invalid stops, no-trade backtests, and unclear risk controls.",
+    "tags": [
+      "MT4",
+      "MT5",
+      "MQL debugging",
+      "EA readiness"
+    ],
+    "body": [
+      "Workfusion growth autopilot is publishing only to owned Workfusion channels by default. Third-party forums and social posts stay in a manual-review outbox unless official API posting is configured.",
+      "The product focus remains narrow: generate EA drafts, debug MQL compiler errors, score readiness, organize projects, and download MQL outputs.",
+      "The best first users are MQL developers, EA builders, prop-style traders who need risk checks, and educators who teach MetaTrader automation.",
+      "Workfusion does not trade for users, does not request broker credentials, and does not promise profitable backtests."
+    ],
+    "ctaLabel": "Open the EA builder resources",
+    "ctaHref": "/resources"
+  },
+  {
+    "id": "2026-05-20-ea-debugging-patterns",
+    "date": "2026-05-20",
+    "title": "EA debugging patterns from today's public questions",
+    "summary": "Invalid stops, MT5 history functions, and magic-number reporting are the clearest Workfusion use cases this week.",
+    "tags": [
+      "MQL5",
+      "Expert Advisors",
+      "MetaEditor",
+      "Risk checks"
+    ],
+    "body": [
+      "Today's public EA questions show the same pattern: most builders are not blocked by strategy first. They are blocked by development workflow issues.",
+      "The recurring issues are invalid stops on XAUUSD, MT5 history/deal functions causing compiler errors, and the need to evaluate multiple EAs by magic number from account history.",
+      "Workfusionapp is built for this workflow: generate a complete EA draft, debug MQL compiler errors, risk-check the code, organize projects, and download the MQL output before manual testing.",
+      "This is a development tool, not a signal service or trading-performance promise."
+    ],
+    "ctaLabel": "Try the MQL5 compiler fixer",
+    "ctaHref": "/mql5-compiler-fixer"
+  }
+]

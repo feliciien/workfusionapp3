@@ -1,0 +1,36 @@
+name: Workfusion Growth Autopilot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 9 * * 1-5"
+
+permissions:
+  contents: write
+
+jobs:
+  owned-channel-autopost:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run owned-channel growth autopilot
+        run: npm run growth:autopilot
+
+      - name: Commit growth output
+        run: |
+          git config user.name "workfusion-growth-autopilot"
+          git config user.email "actions@github.com"
+          git add src/content/workfusion/build-notes.json reports/growth/workfusion_channel_tracker.csv reports/growth/workfusion_autopilot_latest.md reports/growth/workfusion_autopilot_outbox_*.json
+          if git diff --cached --quiet; then
+            echo "No growth changes to commit."
+          else
+            git commit -m "Run Workfusion growth autopilot"
+            git push
+          fi

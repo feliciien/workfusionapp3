@@ -137,6 +137,7 @@ const conversionProof = [
 ];
 
 const seoLinks = [
+  ["/updates", "Build Notes", "Public Workfusion notes on EA debugging patterns, compiler issues, and product workflow improvements."],
   ["/resources", "EA Builder Resource Hub", "26 practical guides for compiler fixes, EA generation, debugging, prop risk, and code review."],
   ["/mql5-compiler-fixer", "MQL5 Compiler Fixer", "Fix MetaEditor errors and produce a complete corrected EA draft."],
   ["/mt5-ea-generator", "MT5 EA Generator", "Turn strategy ideas into structured MQL5 Expert Advisor drafts."],
