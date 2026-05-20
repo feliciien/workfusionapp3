@@ -1375,7 +1375,7 @@ export default function Home() {
                     Checked input: this action reviewed the EA draft shown here; it did not erase or silently rewrite it.
                   </p>
                 )}
-                <pre className="mt-3 max-h-64 overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-xs text-zinc-400">
+                <pre data-testid="current-ea-draft" className="mt-3 max-h-64 overflow-auto rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-xs text-zinc-400">
                   {currentEaCode || "// Generated or fixed EA code appears here. Compile check and backtest estimate will not replace it."}
                 </pre>
               </div>

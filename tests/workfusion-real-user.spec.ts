@@ -9,6 +9,7 @@ test.use({
   viewport: { width: 1440, height: 1300 },
   launchOptions: fs.existsSync(chromePath) ? { executablePath: chromePath } : undefined,
 });
+test.setTimeout(180_000);
 
 test.describe.configure({ mode: "serial" });
 
@@ -36,6 +37,10 @@ async function openConsole(page: Page) {
   await expect(page.getByText("Operator console")).toBeVisible();
 }
 
+function currentDraft(page: Page) {
+  return page.getByTestId("current-ea-draft");
+}
+
 test("homepage explains the product and captures opt-in intent", async ({ page }) => {
   await expectNoBrowserErrors(page, async () => {
     await page.goto("/", { waitUntil: "networkidle" });
@@ -53,23 +58,23 @@ test("generate, compile, backtest, and download stay understandable from the fro
   await expectNoBrowserErrors(page, async () => {
     await openConsole(page);
 
-    await page.getByRole("button", { name: "Generate EA" }).click();
+    await page.getByRole("button", { name: "Generate EA", exact: true }).click();
     await waitForIdle(page);
-    await expect.poll(async () => (await page.locator("pre").first().innerText()).length, { timeout: 120_000 }).toBeGreaterThan(5_000);
-    await expect(page.locator("pre").first()).toContainText("#property strict");
+    await expect.poll(async () => (await currentDraft(page).innerText()).length, { timeout: 120_000 }).toBeGreaterThan(5_000);
+    await expect(currentDraft(page)).toContainText("#property strict");
     await expect(page.getByText("Want a free workflow review or help with the next compiler error?")).toBeVisible();
 
-    const generatedDraft = await page.locator("pre").first().innerText();
+    const generatedDraft = await currentDraft(page).innerText();
     await page.getByRole("button", { name: "Compile check" }).click();
     await waitForIdle(page);
     await expect(page.getByText("Checked input: this action reviewed the EA draft shown here")).toBeVisible();
     await expect(page.getByText(/Compiler/i).first()).toBeVisible();
-    await expect(page.locator("pre").first()).toContainText(generatedDraft.slice(0, 80));
+    await expect(currentDraft(page)).toContainText(generatedDraft.slice(0, 80));
 
     await page.getByRole("button", { name: "Backtest estimate" }).click();
     await waitForIdle(page);
     await expect(page.getByText("This is an estimator, not a real MT5 Strategy Tester result.")).toBeVisible();
-    await expect(page.locator("pre").first()).toContainText(generatedDraft.slice(0, 80));
+    await expect(currentDraft(page)).toContainText(generatedDraft.slice(0, 80));
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download EA" }).click();
@@ -89,7 +94,7 @@ test("real MQL5 issue templates produce visible fixes and tutorial links", async
     await expect(page.getByText(/Invalid volume/i).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /fix mql5 invalid volume lot step/i })).toBeVisible();
 
-    const fixedCode = await page.locator("pre").first().innerText();
+    const fixedCode = await currentDraft(page).innerText();
     expect(fixedCode).toContain("NormalizeVolume");
     expect(fixedCode).toContain("SYMBOL_VOLUME_STEP");
   });
@@ -103,12 +108,12 @@ test("compile check and backtest estimate do not erase the current draft", async
     await waitForIdle(page);
     await expect(page.getByText("Checked input: this action reviewed the EA draft shown here")).toBeVisible();
     await expect(page.getByText(/Array out-of-range risk detected/i)).toBeVisible();
-    await expect(page.locator("pre").first()).toContainText("CopyBuffer");
+    await expect(currentDraft(page)).toContainText("CopyBuffer");
 
     await page.getByRole("button", { name: "Backtest estimate" }).click();
     await waitForIdle(page);
     await expect(page.getByText("This is an estimator, not a real MT5 Strategy Tester result.")).toBeVisible();
-    await expect(page.locator("pre").first()).toContainText("CopyBuffer");
+    await expect(currentDraft(page)).toContainText("CopyBuffer");
   });
 });
 
