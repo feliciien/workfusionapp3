@@ -189,11 +189,12 @@ function pickEaCode(result?: TradingResult | null, fallback = "") {
   return result?.fixedCode || result?.mql5Code || result?.sourceCode || result?.checkedCode || fallback;
 }
 
-function codeSourceLabel(result?: TradingResult | null) {
+function codeSourceLabel(result?: TradingResult | null, fallback = "") {
   if (result?.fixedCode) return "Fixed EA draft";
   if (result?.mql5Code) return "Generated EA draft";
   if (result?.sourceCode) return "Preserved EA draft";
   if (result?.checkedCode) return "Last checked EA draft";
+  if (fallback.trim()) return "Manual debug input";
   return "No generated EA yet";
 }
 
@@ -411,9 +412,9 @@ export default function Home() {
   const payload = useMemo(() => ({ idea, market, preset, platform, propMode }), [idea, market, preset, platform, propMode]);
   const limits = result?.remaining || account?.limits || { generate: 3, optimize: 1, debrief: 1, debug: 1, download: 1 };
   const plan = result?.plan || account?.plan || "checking";
-  const currentEaCode = pickEaCode(result);
-  const codeForChecks = currentEaCode || debugCode;
-  const currentCodeSource = codeSourceLabel(result);
+  const currentEaCode = pickEaCode(result, debugCode);
+  const codeForChecks = currentEaCode;
+  const currentCodeSource = codeSourceLabel(result, debugCode);
 
   function notify(next: Toast) {
     setToast(next);
@@ -559,7 +560,7 @@ export default function Home() {
           propMode,
           riskScore: result?.riskScore || 0,
           compliance: result?.compliance || 0,
-          code: currentEaCode || debugCode,
+          code: currentEaCode,
         }),
       });
       const data = await response.json();
@@ -874,7 +875,7 @@ export default function Home() {
                   "/api/trading/download",
                   {
                     filename: platform === "mt4" ? "workfusion-ea.mq4" : "workfusion-ea.mq5",
-                    content: currentEaCode || debugCode,
+                    content: currentEaCode,
                   },
                   "Download",
                 )}
@@ -956,7 +957,7 @@ export default function Home() {
                 <p className="mt-3 text-sm text-rose-300">{result.error}</p>
               ) : (
                 <div className="mt-3 space-y-3 text-sm leading-6 text-zinc-300">
-                  <p>{result?.summary || "No run yet. Start with Generate EA, Fix code, or Compile check."}</p>
+                  <p>{result?.summary || "No run yet. Generate an EA first, or paste code in the debug box and run Compile check."}</p>
                   {result?.recommendation && <p className="text-emerald-200">{result.recommendation}</p>}
                   {result?.ai && (
                     <p className="text-xs uppercase tracking-[0.16em] text-cyan-300">
