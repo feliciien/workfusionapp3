@@ -8,6 +8,10 @@ type LeadCaptureFormProps = {
   persona?: string;
   compact?: boolean;
   defaultIntent?: "compiler_error" | "ea_draft" | "risk_check";
+  lockIntent?: boolean;
+  title?: string;
+  description?: string;
+  buttonLabel?: string;
 };
 
 type FormState = {
@@ -40,7 +44,16 @@ const intentOptions = [
   { value: "risk_check", label: "Get risk check" },
 ] as const;
 
-export function LeadCaptureForm({ source, persona = "mq5_developer", compact = false, defaultIntent = "compiler_error" }: LeadCaptureFormProps) {
+export function LeadCaptureForm({
+  source,
+  persona = "mq5_developer",
+  compact = false,
+  defaultIntent = "compiler_error",
+  lockIntent = false,
+  title = "Paste compiler errors / Generate EA draft / Get risk check",
+  description = "Short opt-in only. We store one source, one intent, and one new lead status. No scraped lists, no purchased contacts, no trading promises.",
+  buttonLabel = "Join list",
+}: LeadCaptureFormProps) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(persona);
   const [intent, setIntent] = useState(defaultIntent);
@@ -73,6 +86,8 @@ export function LeadCaptureForm({ source, persona = "mq5_developer", compact = f
           cta: "primary_conversion_cta",
           leadStatus: "new",
           page: window.location.pathname,
+          referrer: document.referrer,
+          url: window.location.href,
         }),
       });
       const data = await response.json();
@@ -88,26 +103,32 @@ export function LeadCaptureForm({ source, persona = "mq5_developer", compact = f
 
   return (
     <div id="workfusion-primary-cta" className={`rounded-lg border border-emerald-300/20 bg-zinc-950 p-5 ${compact ? "" : "shadow-2xl shadow-black/20"}`}>
-      <p className="text-sm font-semibold text-emerald-200">Paste compiler errors / Generate EA draft / Get risk check</p>
+      <p className="text-sm font-semibold text-emerald-200">{title}</p>
       <p className="mt-2 text-sm leading-6 text-zinc-400">
-        Short opt-in only. We store one source, one intent, and one new lead status. No scraped lists, no purchased contacts, no trading promises.
+        {description}
       </p>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {intentOptions.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setIntent(item.value)}
-            className={`rounded-lg border px-3 py-2 text-left text-xs font-semibold ${
-              intent === item.value
-                ? "border-emerald-300 bg-emerald-300 text-[#101112]"
-                : "border-white/10 bg-[#101112] text-zinc-300 hover:border-emerald-300/50"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {lockIntent ? (
+        <div className="mt-4 rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-semibold text-emerald-100">
+          Intent locked: compiler error support
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          {intentOptions.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setIntent(item.value)}
+              className={`rounded-lg border px-3 py-2 text-left text-xs font-semibold ${
+                intent === item.value
+                  ? "border-emerald-300 bg-emerald-300 text-[#101112]"
+                  : "border-white/10 bg-[#101112] text-zinc-300 hover:border-emerald-300/50"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-4 grid gap-3 sm:grid-cols-[1.1fr_0.9fr]">
         <input
           value={email}
@@ -135,7 +156,7 @@ export function LeadCaptureForm({ source, persona = "mq5_developer", compact = f
           {state.message}
         </p>
         <Button disabled={state.status === "loading"} onClick={submit} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
-          Join list
+          {buttonLabel}
         </Button>
       </div>
     </div>

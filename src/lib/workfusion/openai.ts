@@ -483,6 +483,7 @@ function safeGrowthTelemetry(telemetry: GrowthIntelligenceTelemetry) {
     counts: snapshot.counts,
     funnel: telemetry.funnel,
     pages_30d: snapshot.pages,
+    page_funnels_30d: snapshot.pageFunnels,
     usage_by_feature_30d: telemetry.usageByFeature30d,
     usage_by_day_14d: telemetry.usageByDay14d,
     visits_by_day_14d: telemetry.visitsByDay14d,

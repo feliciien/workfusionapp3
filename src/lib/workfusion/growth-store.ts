@@ -47,6 +47,7 @@ export type GrowthSnapshot = {
   pages: Array<{ path: string; visits: number }>;
   sourceTags: Array<{ sourceTag: string; count: number }>;
   conversionPaths: Array<{ conversionPath: string; count: number }>;
+  pageFunnels: Array<{ page: string; visits: number; leads: number; leadRatePct: number; avgTimeSeconds: number }>;
   channelTracker: GrowthChannelTrackerRow[];
   manualPostQueue: GrowthManualPost[];
   tasks: Array<{ priority: string; title: string; detail: string }>;
@@ -221,6 +222,55 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     order by count(*) desc, conversion_path
     limit 12
   `);
+  const pageFunnels = await query<{ page: string; visits: string; leads: string; avg_time_seconds: string }>(`
+    with page_keys as (
+      select path as page
+      from wf_page_events
+      where created_at > now() - interval '30 days'
+      union
+      select coalesce(nullif(metadata->>'page', ''), 'unknown') as page
+      from wf_marketing_leads
+      where created_at > now() - interval '30 days'
+      union
+      select coalesce(nullif(metadata->>'page', ''), 'unknown') as page
+      from wf_usage_events
+      where event_type = 'time_on_page'
+        and created_at > now() - interval '30 days'
+    ),
+    visits as (
+      select path as page, count(*)::int as visits
+      from wf_page_events
+      where created_at > now() - interval '30 days'
+      group by 1
+    ),
+    leads as (
+      select coalesce(nullif(metadata->>'page', ''), 'unknown') as page, count(*)::int as leads
+      from wf_marketing_leads
+      where created_at > now() - interval '30 days'
+      group by 1
+    ),
+    engagement as (
+      select
+        coalesce(nullif(metadata->>'page', ''), 'unknown') as page,
+        round(avg((metadata->>'durationMs')::numeric) / 1000, 1)::text as avg_time_seconds
+      from wf_usage_events
+      where event_type = 'time_on_page'
+        and created_at > now() - interval '30 days'
+        and metadata->>'durationMs' ~ '^[0-9]+$'
+      group by 1
+    )
+    select
+      page_keys.page,
+      coalesce(visits.visits, 0)::text as visits,
+      coalesce(leads.leads, 0)::text as leads,
+      coalesce(engagement.avg_time_seconds, '0') as avg_time_seconds
+    from page_keys
+    left join visits on visits.page = page_keys.page
+    left join leads on leads.page = page_keys.page
+    left join engagement on engagement.page = page_keys.page
+    order by coalesce(visits.visits, 0) desc, coalesce(leads.leads, 0) desc, page_keys.page
+    limit 12
+  `);
 
   const countMap = normalizeCounts(counts?.rows[0] || {});
   return {
@@ -252,6 +302,17 @@ export async function growthSnapshot(): Promise<GrowthSnapshot> {
     pages: (pages?.rows || []).map((row) => ({ path: row.path, visits: Number(row.visits || 0) })),
     sourceTags: (sourceTags?.rows || []).map((row) => ({ sourceTag: row.source_tag || "unknown", count: Number(row.count || 0) })),
     conversionPaths: (conversionPaths?.rows || []).map((row) => ({ conversionPath: row.conversion_path || "unknown", count: Number(row.count || 0) })),
+    pageFunnels: (pageFunnels?.rows || []).map((row) => {
+      const visits = Number(row.visits || 0);
+      const leads = Number(row.leads || 0);
+      return {
+        page: row.page,
+        visits,
+        leads,
+        leadRatePct: pct(leads, visits),
+        avgTimeSeconds: Number(row.avg_time_seconds || 0),
+      };
+    }),
     channelTracker: await loadChannelTracker(),
     manualPostQueue: await loadManualPostQueue(),
     tasks: buildTasks(countMap),

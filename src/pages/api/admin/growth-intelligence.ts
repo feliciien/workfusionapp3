@@ -21,6 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       telemetry: {
         funnel: telemetry.funnel,
         pages: telemetry.snapshot.pages,
+        pageFunnels: telemetry.snapshot.pageFunnels,
         usageByFeature30d: telemetry.usageByFeature30d,
         topReferrers30d: telemetry.topReferrers30d,
         sourceTags30d: telemetry.sourceTags30d,

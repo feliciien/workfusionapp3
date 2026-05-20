@@ -27,6 +27,15 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
             {page.h1}
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-zinc-300">{page.description}</p>
+          {page.exampleError && (
+            <div className="mt-7 rounded-lg border border-rose-300/20 bg-rose-300/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-200">{page.exampleError.title}</p>
+              <pre className="mt-3 overflow-x-auto rounded-lg border border-white/10 bg-[#101112] p-4 text-sm leading-6 text-rose-100">
+                {page.exampleError.code}
+              </pre>
+              <p className="mt-3 text-sm leading-6 text-rose-50">{page.exampleError.context}</p>
+            </div>
+          )}
           <div className="mt-7 grid gap-3 sm:grid-cols-2">
             {page.bullets.map((item) => (
               <div key={item} className="rounded-lg border border-white/10 bg-zinc-950 p-4 text-sm leading-6 text-zinc-300">
@@ -35,10 +44,18 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
             ))}
           </div>
           <a href="#workfusion-primary-cta" className="mt-7 inline-flex rounded-lg bg-emerald-300 px-5 py-3 text-sm font-semibold text-[#101112] hover:bg-emerald-200">
-            Paste compiler errors / Generate EA draft / Get risk check
+            {page.primaryCta || "Paste compiler errors / Generate EA draft / Get risk check"}
           </a>
         </div>
-        <LeadCaptureForm source={page.source} persona={page.persona} defaultIntent={page.slug.includes("risk") ? "risk_check" : page.slug.includes("generator") ? "ea_draft" : "compiler_error"} />
+        <LeadCaptureForm
+          source={page.source}
+          persona={page.persona}
+          defaultIntent={page.slug.includes("risk") ? "risk_check" : page.slug.includes("generator") ? "ea_draft" : "compiler_error"}
+          lockIntent={page.lockIntent}
+          title={page.leadCtaTitle}
+          description={page.leadCtaBody}
+          buttonLabel={page.leadCtaButton}
+        />
       </section>
 
       <section className="border-y border-white/10 bg-zinc-950">
@@ -48,6 +65,26 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
           <InfoBlock title="Outcome" body={page.outcome} />
         </div>
       </section>
+
+      {page.fixPath && (
+        <section className="mx-auto grid max-w-7xl gap-8 px-5 py-14 lg:grid-cols-[0.75fr_1.25fr]">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-200">Support path</p>
+            <h2 className="mt-2 text-3xl font-semibold">One problem, one fix path.</h2>
+            <p className="mt-4 text-sm leading-6 text-zinc-400">
+              This page is intentionally narrow. It is built to convert high-intent developers who already have a compiler error, not casual homepage visitors.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {page.fixPath.map((step) => (
+              <article key={step.title} className="rounded-lg border border-white/10 bg-zinc-950 p-5">
+                <h2 className="text-lg font-semibold text-white">{step.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-zinc-400">{step.body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="mx-auto grid max-w-7xl gap-8 px-5 py-14 lg:grid-cols-[0.8fr_1.2fr]">
         <div>

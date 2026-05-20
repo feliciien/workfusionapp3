@@ -12,6 +12,17 @@ export type SeoLanding = {
   persona: string;
   bullets: string[];
   workflow: string[];
+  primaryCta?: string;
+  exampleError?: {
+    title: string;
+    code: string;
+    context: string;
+  };
+  fixPath?: Array<{ title: string; body: string }>;
+  leadCtaTitle?: string;
+  leadCtaBody?: string;
+  leadCtaButton?: string;
+  lockIntent?: boolean;
   faqs: Array<{ question: string; answer: string }>;
 };
 
@@ -20,17 +31,42 @@ export const seoLandings: Record<string, SeoLanding> = {
     slug: "mql5-compiler-fixer",
     title: "MQL5 Compiler Fixer",
     metaTitle: "MQL5 Compiler Fixer | Fix MT5 EA Errors",
-    description: "Fix common MQL5 and MetaEditor errors, generate a complete corrected EA draft, and run a compile-aware readiness check.",
-    eyebrow: "MQL5 compiler fixer",
-    h1: "Fix MQL5 compiler errors before they slow down your EA build.",
-    audience: "For MT5 EA builders who paste MetaEditor errors and need a complete corrected draft.",
-    problem: "Compiler errors like undeclared identifier, invalid stops, missing trade object, and incomplete lifecycle functions break momentum.",
-    outcome: "Workfusion turns the error context into a complete fixed EA draft with risk guards, then routes it through the compiler worker when available.",
+    description: "Paste one MetaEditor compiler error, get the likely root cause, generate a corrected MQL5 draft, then run a compile check before manual testing.",
+    eyebrow: "MQL5 compiler support page",
+    h1: "Fix the first MQL5 compiler error before the whole EA becomes noise.",
+    audience: "For MT5 EA builders stuck on one MetaEditor error and trying to avoid a cascade of misleading follow-up errors.",
+    problem: "The first compiler error is often the real blocker. After that, MetaEditor can show dozens of secondary errors that waste time and push developers into random edits.",
+    outcome: "Workfusion keeps the workflow narrow: paste the error, preserve the EA context, generate a corrected draft, run a compile check, then download only after the code is reviewable.",
     source: "seo_mql5_compiler_fixer",
     persona: "mq5_developer",
-    bullets: ["Paste MQL5 code and compiler output", "Get a full fixed draft, not a tiny snippet", "Run static checks and MetaEditor compilation", "Keep risk guards visible before download"],
-    workflow: ["Paste code and errors", "Generate a fixed EA draft", "Compile check with MetaEditor", "Download and continue manual testing"],
+    bullets: ["Focused on the first MetaEditor error", "Keeps the full EA context attached", "Explains the likely fix path before rewriting", "Tracks opt-in source as compiler_fixer"],
+    workflow: ["Paste the exact error line", "Paste enough EA context", "Generate the corrected draft", "Run compile check and download"],
+    primaryCta: "Paste your MQL5 compiler error",
+    exampleError: {
+      title: "Example error this page is built around",
+      code: "'trade' - undeclared identifier\n'Buy' - some operator expected",
+      context: "This usually means the EA is calling trade.Buy() without the MQL5 trade include/object being declared correctly, or the code is mixing MT4-style order logic with MQL5 CTrade calls.",
+    },
+    fixPath: [
+      {
+        title: "1. Fix the first error, not the full cascade",
+        body: "Start at the first MetaEditor line number. Later errors can disappear once the missing include, object, function signature, or brace is fixed.",
+      },
+      {
+        title: "2. Preserve the full EA context",
+        body: "Paste the EA draft around OnInit, OnTick, includes, inputs, and the failing trade call. Snippets are often too small to repair safely.",
+      },
+      {
+        title: "3. Generate a corrected draft, then compile-check",
+        body: "Workfusion returns a full corrected MQL draft and runs the static/MetaEditor compiler path when the worker is configured.",
+      },
+    ],
+    leadCtaTitle: "Send me the fixed EA workflow",
+    leadCtaBody: "Opt in with the exact compiler-error intent. This creates one CRM lead tied to the compiler_fixer page, so we can measure whether this support page converts better than the homepage.",
+    leadCtaButton: "Track compiler-fix interest",
+    lockIntent: true,
     faqs: [
+      { question: "Should I paste every compiler error?", answer: "Paste the first error and the relevant EA context first. A long cascade is useful only after the root blocker is visible." },
       { question: "Does this replace MetaEditor?", answer: "No. It prepares and fixes code, then uses MetaEditor when the compiler worker is online." },
       { question: "Can it guarantee a profitable EA?", answer: "No. It is a coding and readiness workflow, not a trading performance promise." },
     ],

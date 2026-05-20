@@ -48,6 +48,7 @@ type GrowthSnapshot = {
   pages: Array<{ path: string; visits: number }>;
   sourceTags: Array<{ sourceTag: string; count: number }>;
   conversionPaths: Array<{ conversionPath: string; count: number }>;
+  pageFunnels: Array<{ page: string; visits: number; leads: number; leadRatePct: number; avgTimeSeconds: number }>;
   channelTracker: Array<{
     date: string;
     channel: string;
@@ -471,6 +472,35 @@ export function GrowthCommandCenter() {
             <section className="mt-8">
               <Panel title="SEO pages">
                 {snapshot.pages.map((item) => <Row key={item.path} label={item.path} value={item.visits} />)}
+              </Panel>
+            </section>
+
+            <section className="mt-8">
+              <Panel title="Page funnel">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-left text-sm">
+                    <thead className="border-b border-white/10 text-xs uppercase tracking-[0.14em] text-zinc-500">
+                      <tr>
+                        <th className="px-3 py-3">Page</th>
+                        <th className="px-3 py-3">Visits</th>
+                        <th className="px-3 py-3">Leads</th>
+                        <th className="px-3 py-3">Lead rate</th>
+                        <th className="px-3 py-3">Avg time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {snapshot.pageFunnels.map((item) => (
+                        <tr key={item.page} className="border-b border-white/5 text-zinc-300">
+                          <td className="px-3 py-3 font-semibold text-white">{item.page}</td>
+                          <td className="px-3 py-3">{item.visits}</td>
+                          <td className="px-3 py-3">{item.leads}</td>
+                          <td className="px-3 py-3">{item.leadRatePct}%</td>
+                          <td className="px-3 py-3">{item.avgTimeSeconds}s</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </Panel>
             </section>
 
