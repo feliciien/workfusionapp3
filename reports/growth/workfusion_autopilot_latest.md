@@ -1,8 +1,8 @@
-# Workfusion Growth Autopilot - 2026-05-20
+# Workfusion Growth Autopilot - 2026-05-21
 
 ## Result
 
-- Owned-site post: already present
+- Owned-site post: published to repo
 - Third-party posting: manual_required
 - Outbox generated for LinkedIn/forums
 
