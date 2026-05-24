@@ -15,7 +15,7 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
           <nav className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
             <a href="/#console" className="hover:text-white">Console</a>
             <a href="/pricing" className="hover:text-white">Pricing</a>
-            <a href="/growth" className="hover:text-white">Growth</a>
+            <a href="/resources" className="hover:text-white">Resources</a>
             <a href="/#support" className="hover:text-white">Support</a>
           </nav>
         </div>

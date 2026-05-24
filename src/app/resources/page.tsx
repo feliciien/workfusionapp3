@@ -27,7 +27,6 @@ export default function ResourcesPage() {
             <a href="/pricing" className="hover:text-white">Pricing</a>
             <a href="/updates" className="hover:text-white">Build notes</a>
             <a href="/mql5-compiler-fixer" className="hover:text-white">Compiler fixer</a>
-            <a href="/growth" className="hover:text-white">Growth</a>
           </nav>
         </div>
       </header>

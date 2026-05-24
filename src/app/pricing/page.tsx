@@ -254,8 +254,8 @@ export default function PricingPage() {
             <a href="/#console" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
               Open console
             </a>
-            <a href="/growth" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-              Growth
+            <a href="/resources" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
+              Resources
             </a>
             <a href="/legal" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
               Risk disclosure
@@ -308,13 +308,18 @@ export default function PricingPage() {
               placeholder="you@example.com"
               className="rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
             />
-            <input
-              value={ownerToken}
-              onChange={(event) => setOwnerToken(event.target.value)}
-              placeholder="Founder token only"
-              type="password"
-              className="rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
-            />
+            <details className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                Founder access
+              </summary>
+              <input
+                value={ownerToken}
+                onChange={(event) => setOwnerToken(event.target.value)}
+                placeholder="Owner token"
+                type="password"
+                className="mt-3 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
+              />
+            </details>
           </div>
           <button onClick={account?.authenticated ? refreshAccount : signIn} className="rounded-lg bg-emerald-300 px-4 py-3 text-sm font-semibold text-[#101112]">
             {account?.authenticated ? "Refresh account" : "Attach email"}

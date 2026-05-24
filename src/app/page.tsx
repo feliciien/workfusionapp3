@@ -149,6 +149,30 @@ const conversionProof = [
   ["Risk posture", "No martingale promotion, no profit promises, no hidden model name."],
 ];
 
+const entryPaths = [
+  {
+    intent: "compiler_error",
+    label: "I have compiler errors",
+    title: "Fix a broken EA first",
+    body: "Paste MetaEditor output, load a known MQ5 failure pattern, and get a corrected draft plus issue notes.",
+    cta: "Open debugger",
+  },
+  {
+    intent: "ea_draft",
+    label: "I need an EA draft",
+    title: "Turn a strategy brief into MQL",
+    body: "Start from market, platform, risk cap, entry style, and exit rules. Then inspect the generated code before download.",
+    cta: "Start generator",
+  },
+  {
+    intent: "risk_check",
+    label: "I need prop-firm checks",
+    title: "Review risk before testing",
+    body: "Use prop mode, readiness scores, compile checks, and backtest estimates as workflow gates before any manual MT5 validation.",
+    cta: "Open risk desk",
+  },
+];
+
 const seoLinks = [
   ["/updates", "Build Notes", "Public Workfusion notes on EA debugging patterns, compiler issues, and product workflow improvements."],
   ["/resources", "EA Builder Resource Hub", "Practical guides for compiler fixes, EA generation, debugging, prop risk, and code review."],
@@ -260,6 +284,12 @@ function activatedFollowupFor(result?: TradingResult | null) {
   if (result.lastAction === "/api/trading/download") {
     return { feature: "download", action: result.lastActionLabel || "Download", intent: "ea_draft" };
   }
+  return null;
+}
+
+function knownProblemForIntent(intent: string) {
+  if (intent === "compiler_error") return commonMqlProblems[0];
+  if (intent === "risk_check") return commonMqlProblems[3];
   return null;
 }
 
@@ -530,6 +560,22 @@ export default function Home() {
       title: template.title,
       body: "Loaded a real MQ5 problem pattern. Run Fix code to get the diagnostic and linked tutorial.",
     });
+  }
+
+  function startEntryPath(intent: string) {
+    setLeadIntent(intent);
+    const template = knownProblemForIntent(intent);
+    if (template) {
+      setDebugCode(template.code);
+      setDebugErrors(template.errors);
+      setPlatform("mt5");
+    }
+    if (intent === "ea_draft") {
+      setIdea("XAUUSD session breakout EA, MT5, M5, max 0.5% risk, fixed SL/TP, spread filter, no martingale.");
+      setPlatform("mt5");
+    }
+    trackUsageEvent("entry_path_selected", "homepage_entry_path", { intent, destination: "console" }).catch(() => undefined);
+    document.getElementById("console")?.scrollIntoView({ behavior: "smooth" });
   }
 
   async function run(endpoint: string, body: Record<string, unknown>, label: string) {
@@ -996,7 +1042,7 @@ export default function Home() {
             <a href="#shots" className="hover:text-white">Screenshots</a>
             <a href="#pricing" className="hover:text-white">Pricing</a>
             <a href="/resources" className="hover:text-white">Resources</a>
-            <a href="/growth" className="hover:text-white">Growth</a>
+            <a href="/updates" className="hover:text-white">Updates</a>
             <a href="#support" className="hover:text-white">Support</a>
             <a href="/legal" className="hover:text-white">Risk disclosure</a>
           </nav>
@@ -1022,7 +1068,7 @@ export default function Home() {
             <a onClick={() => setMobileMenuOpen(false)} href="#shots" className="rounded-lg bg-white/[0.04] px-3 py-3">Screenshots</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#pricing" className="rounded-lg bg-white/[0.04] px-3 py-3">Pricing</a>
             <a onClick={() => setMobileMenuOpen(false)} href="/resources" className="rounded-lg bg-white/[0.04] px-3 py-3">Resources</a>
-            <a onClick={() => setMobileMenuOpen(false)} href="/growth" className="rounded-lg bg-white/[0.04] px-3 py-3">Growth</a>
+            <a onClick={() => setMobileMenuOpen(false)} href="/updates" className="rounded-lg bg-white/[0.04] px-3 py-3">Updates</a>
             <a onClick={() => setMobileMenuOpen(false)} href="#support" className="rounded-lg bg-white/[0.04] px-3 py-3">Support</a>
             <a onClick={() => setMobileMenuOpen(false)} href="/legal" className="rounded-lg bg-white/[0.04] px-3 py-3">Risk disclosure</a>
           </nav>
@@ -1123,6 +1169,32 @@ export default function Home() {
           </div>
         </div>
         <ProductShot />
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 pb-14">
+        <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Start from the real blocker</p>
+            <h2 className="mt-2 text-3xl font-semibold">Choose the fastest path to a useful EA output.</h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-zinc-400">
+            Start with the blocker slowing your EA build and move directly to an output you can inspect.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {entryPaths.map((path) => (
+            <article key={path.intent} className="rounded-lg border border-white/10 bg-zinc-950 p-5">
+              <p className="w-fit rounded-lg border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">
+                {path.label}
+              </p>
+              <h3 className="mt-5 text-2xl font-semibold">{path.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">{path.body}</p>
+              <Button onClick={() => startEntryPath(path.intent)} className="mt-5 rounded-lg bg-white px-4 py-2 text-[#101112] hover:bg-zinc-200">
+                {path.cta}
+              </Button>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="border-y border-white/10 bg-[#151719]">
@@ -1453,13 +1525,18 @@ export default function Home() {
                       placeholder="you@example.com"
                       className="mt-3 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-2 text-sm text-white outline-none focus:border-emerald-300"
                     />
-                    <input
-                      value={ownerToken}
-                      onChange={(event) => setOwnerToken(event.target.value)}
-                      placeholder="Owner token only for founder email"
-                      type="password"
-                      className="mt-2 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-2 text-sm text-white outline-none focus:border-emerald-300"
-                    />
+                    <details className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                        Founder access
+                      </summary>
+                      <input
+                        value={ownerToken}
+                        onChange={(event) => setOwnerToken(event.target.value)}
+                        placeholder="Owner token"
+                        type="password"
+                        className="mt-3 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-2 text-sm text-white outline-none focus:border-emerald-300"
+                      />
+                    </details>
                     <Button disabled={!!activeAction} onClick={signIn} className="mt-3 w-full rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
                       Attach email
                     </Button>
@@ -1697,7 +1774,7 @@ export default function Home() {
         <a href="#" className="rounded-md px-2 py-3 hover:bg-white/10">Home</a>
         <a href="#console" className="rounded-md px-2 py-3 hover:bg-white/10">Console</a>
         <a href="#pricing" className="rounded-md px-2 py-3 hover:bg-white/10">Pricing</a>
-        <a href="/growth" className="rounded-md px-2 py-3 hover:bg-white/10">Growth</a>
+        <a href="/resources" className="rounded-md px-2 py-3 hover:bg-white/10">Guides</a>
         <a href="#support" className="rounded-md px-2 py-3 hover:bg-white/10">Support</a>
       </nav>
     </main>

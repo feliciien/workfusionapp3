@@ -49,7 +49,6 @@ export default async function ResourceGuidePage({ params }: ResourceGuidePagePro
             <a href="/resources" className="hover:text-white">Resources</a>
             <a href={`/${guide.pillarSlug}`} className="hover:text-white">Pillar page</a>
             <a href="/#console" className="hover:text-white">Console</a>
-            <a href="/growth" className="hover:text-white">Growth</a>
           </nav>
         </div>
       </header>
