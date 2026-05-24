@@ -202,7 +202,7 @@ export async function analyzeGrowthIntelligence(telemetry: GrowthIntelligenceTel
   }
 
   const controller = new AbortController();
-  const timeoutMs = Number(process.env.WORKFUSION_GROWTH_OPENAI_TIMEOUT_MS || process.env.WORKFUSION_OPENAI_TIMEOUT_MS || 20000);
+  const timeoutMs = Number(process.env.WORKFUSION_GROWTH_OPENAI_TIMEOUT_MS || process.env.WORKFUSION_OPENAI_TIMEOUT_MS || 45000);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -213,7 +213,7 @@ export async function analyzeGrowthIntelligence(telemetry: GrowthIntelligenceTel
         verbosity: "medium",
         format: growthIntelligenceTextFormat,
       },
-      max_output_tokens: 2800,
+      max_output_tokens: Number(process.env.WORKFUSION_GROWTH_OPENAI_MAX_OUTPUT_TOKENS || 5000),
       input: [
         {
           role: "system",
@@ -229,6 +229,8 @@ export async function analyzeGrowthIntelligence(telemetry: GrowthIntelligenceTel
               "Return concrete actions, not generic marketing advice.",
               "Use exact numbers from telemetry in diagnosis and scorecard.",
               "If data volume is too small, say so and propose the next measurement step.",
+              "Keep all arrays within the JSON schema limits and keep strings concise.",
+              "Return raw JSON only, with no markdown wrappers or commentary.",
               "One link per draft maximum, only if it helps the user continue a technical debugging path.",
               "No autoposting. Manual review remains required for external channels.",
             ],
@@ -238,8 +240,8 @@ export async function analyzeGrowthIntelligence(telemetry: GrowthIntelligenceTel
       ],
     } as Parameters<typeof openai.responses.create>[0], { signal: controller.signal } as never);
 
-    const text = String((response as { output_text?: string }).output_text || "");
-    return normalizeGrowthIntelligence(parseJsonObject(text), fallback, model);
+    const parsed = parseStructuredResponseObject(response);
+    return normalizeGrowthIntelligence(parsed.value, fallback, model, parsed.error);
   } catch (error) {
     return {
       ...fallback,
@@ -384,6 +386,7 @@ const growthIntelligenceTextFormat = {
       },
       benchmarks: {
         type: "array",
+        maxItems: 4,
         items: {
           type: "object",
           additionalProperties: false,
@@ -399,6 +402,7 @@ const growthIntelligenceTextFormat = {
       },
       priorities: {
         type: "array",
+        maxItems: 4,
         items: {
           type: "object",
           additionalProperties: false,
@@ -416,6 +420,7 @@ const growthIntelligenceTextFormat = {
       },
       experiments: {
         type: "array",
+        maxItems: 4,
         items: {
           type: "object",
           additionalProperties: false,
@@ -431,6 +436,7 @@ const growthIntelligenceTextFormat = {
       },
       channelPlan: {
         type: "array",
+        maxItems: 4,
         items: {
           type: "object",
           additionalProperties: false,
@@ -451,13 +457,14 @@ const growthIntelligenceTextFormat = {
         required: ["targetProfile", "qualificationQuestions", "draft", "doNotSay"],
         properties: {
           targetProfile: { type: "string" },
-          qualificationQuestions: { type: "array", items: { type: "string" } },
+          qualificationQuestions: { type: "array", maxItems: 6, items: { type: "string" } },
           draft: { type: "string" },
-          doNotSay: { type: "array", items: { type: "string" } },
+          doNotSay: { type: "array", maxItems: 6, items: { type: "string" } },
         },
       },
       automationRules: {
         type: "array",
+        maxItems: 4,
         items: {
           type: "object",
           additionalProperties: false,
@@ -469,8 +476,8 @@ const growthIntelligenceTextFormat = {
           },
         },
       },
-      instrumentationGaps: { type: "array", items: { type: "string" } },
-      risks: { type: "array", items: { type: "string" } },
+      instrumentationGaps: { type: "array", maxItems: 6, items: { type: "string" } },
+      risks: { type: "array", maxItems: 6, items: { type: "string" } },
     },
   },
 };
@@ -683,7 +690,7 @@ function localGrowthIntelligence(telemetry: GrowthIntelligenceTelemetry): Growth
   };
 }
 
-function normalizeGrowthIntelligence(parsed: Record<string, unknown> | undefined, fallback: GrowthIntelligenceResult, model: string): GrowthIntelligenceResult {
+function normalizeGrowthIntelligence(parsed: Record<string, unknown> | undefined, fallback: GrowthIntelligenceResult, model: string, parseError = "OpenAI returned an unparsable growth response."): GrowthIntelligenceResult {
   if (!parsed) {
     return {
       ...fallback,
@@ -692,7 +699,7 @@ function normalizeGrowthIntelligence(parsed: Record<string, unknown> | undefined
         provider: "openai",
         status: "fallback",
         model,
-        error: "OpenAI returned an unparsable growth response.",
+        error: parseError,
       },
     };
   }
@@ -836,6 +843,56 @@ function parseJsonObject(text: string) {
     }
   }
   return undefined;
+}
+
+function parseStructuredResponseObject(response: unknown): { value?: Record<string, unknown>; error?: string } {
+  const directText = typeof (response as { output_text?: unknown }).output_text === "string"
+    ? String((response as { output_text?: unknown }).output_text)
+    : "";
+  const directParsed = parseJsonObject(directText);
+  if (directParsed) return { value: directParsed };
+
+  const output = (response as { output?: unknown }).output;
+  if (Array.isArray(output)) {
+    for (const item of output) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      const content = (item as { content?: unknown }).content;
+      if (!Array.isArray(content)) continue;
+      for (const contentItem of content) {
+        if (!contentItem || typeof contentItem !== "object" || Array.isArray(contentItem)) continue;
+        const parsed = (contentItem as { parsed?: unknown }).parsed;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          return { value: parsed as Record<string, unknown> };
+        }
+
+        const text = typeof (contentItem as { text?: unknown }).text === "string"
+          ? String((contentItem as { text?: unknown }).text)
+          : "";
+        const textParsed = parseJsonObject(text);
+        if (textParsed) return { value: textParsed };
+
+        const refusal = typeof (contentItem as { refusal?: unknown }).refusal === "string"
+          ? String((contentItem as { refusal?: unknown }).refusal)
+          : "";
+        if (refusal) {
+          return { error: `OpenAI refused the growth intelligence response: ${refusal.slice(0, 180)}` };
+        }
+      }
+    }
+  }
+
+  const status = typeof (response as { status?: unknown }).status === "string"
+    ? String((response as { status?: unknown }).status)
+    : "";
+  const incompleteDetails = (response as { incomplete_details?: unknown }).incomplete_details;
+  if (status && status !== "completed") {
+    const detail = incompleteDetails && typeof incompleteDetails === "object"
+      ? JSON.stringify(incompleteDetails).slice(0, 220)
+      : "";
+    return { error: `OpenAI growth response was ${status}${detail ? `: ${detail}` : ""}.` };
+  }
+
+  return { error: "OpenAI returned an unparsable growth response." };
 }
 
 function localSupportAnalysis(input: { category?: string; subject?: string; message: string; page?: string }): SupportAiAnalysis {
