@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "status": 200,
+  "seconds": 35.28,
+  "data": {
+    "status": "pass",
+    "score": 100,
+    "diagnostics": [
+      "MetaEditor compiled the EA and produced an .ex5 artifact.",
+      "Static compile pre-check passed. Run MetaEditor before live use."
+    ],
+    "worker": "remote-mql-compiler",
+    "compiled": true,
+    "compiler": {
+      "mode": "remote_worker",
+      "available": true,
+      "message": "Real MetaEditor compilation passed.",
+      "returnCode": 1,
+      "sourceFile": "bab55f219f214092_support_7f1dab6e736f4fc6a7_qa_generated.mq5",
+      "artifactFile": "bab55f219f214092_support_7f1dab6e736f4fc6a7_qa_generated.ex5",
+      "logFile": "workfusion_worker_compile_bab55f219f214092.log",
+      "logTail": []
+    }
+  },
+  "text": "{\"status\":\"pass\",\"score\":100,\"diagnostics\":[\"MetaEditor compiled the EA and produced an .ex5 artifact.\",\"Static compile pre-check passed. Run MetaEditor before live use.\"],\"worker\":\"remote-mql-compiler\",\"compiled\":true,\"compiler\":{\"mode\":\"remote_worker\",\"available\":true,\"message\":\"Real MetaEditor compilation passed.\",\"returnCode\":1,\"sourceFile\":\"bab55f219f214092_support_7f1dab6e736f4fc6a7_qa_generated.mq5\",\"artifactFile\":\"bab55f219f214092_support_7f1dab6e736f4fc6a7_qa_generated.ex5\",\"logFile\":\"workfusion_worker_compile_bab55f219f214092.log\",\"logTail\":[]}}"
+}

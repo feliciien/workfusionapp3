@@ -1,0 +1,22 @@
+{
+  "ticket_id": "support_7f1dab6e736f4fc6a7",
+  "ticket_email_redacted": "qa+...@workfusionapp.test",
+  "ticket_page": "/qa",
+  "repro_email": "qa+support-7f1dab6e736f4fc6a7@workfusionapp.test",
+  "base_url": "https://www.workfusionapp.com",
+  "payload": {
+    "idea": "London breakout XAUUSD M5, risk 0.5%, no martingale",
+    "market": "XAUUSD",
+    "platform": "mt5",
+    "propMode": true,
+    "page": "/qa",
+    "url": "https://www.workfusionapp.com/qa",
+    "referrer": "qa",
+    "sourceTag": "direct",
+    "conversionPath": "compiler_fixer"
+  },
+  "local_git_commit": "b0cf5b3",
+  "local_git_status": "?? reports/qa/",
+  "created_at_utc": "2026-05-24T23:24:23.676354+00:00",
+  "note": "Original failing MQ5/log were not attached to the support ticket. This repro collects a fresh generated MQ5 and compile result with the same QA context after the deployed fix."
+}
