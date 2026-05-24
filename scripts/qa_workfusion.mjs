@@ -369,9 +369,9 @@ await check("support endpoint stores AI triage ticket", async () => {
     cookie: userCookie,
     body: {
       email: qaEmail,
-      category: "compiler_error",
-      subject: "QA compiler issue",
-      message: "The generated MQ5 code fails in MetaEditor with an undeclared identifier error during QA.",
+      category: "feedback",
+      subject: "Synthetic QA support pipeline check",
+      message: "Synthetic QA support pipeline check for /qa. This test verifies support storage and AI triage only; it does not assert a generated MQ5 compiler failure.",
       page: "/qa",
     },
   });
