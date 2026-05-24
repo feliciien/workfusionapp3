@@ -5,6 +5,7 @@ export function compileCheck(code: string): WorkerCheck {
   const diagnostics: string[] = [];
   const source = code || "";
   let score = 100;
+  let forcedStatus: WorkerCheck["status"] | null = null;
 
   if (source.trim().length < 5000) {
     diagnostics.push("Code is too short to be a complete EA.");
@@ -61,19 +62,23 @@ export function compileCheck(code: string): WorkerCheck {
   }
   if (issueKinds.includes("ctrade_setup")) {
     diagnostics.push("CTrade setup issue detected. Check Trade.mqh include, CTrade object declaration, object name case, and semicolons before CTrade.");
-    score -= 16;
+    score -= 38;
+    forcedStatus = "fail";
   }
   if (issueKinds.includes("mt4_to_mql5_migration")) {
     diagnostics.push("MT4-style order API detected in an MQL5 context. Migrate OP_BUY/OP_SELL/MarketInfo/old OrderSend patterns to CTrade or MqlTradeRequest.");
-    score -= 18;
+    score -= 38;
+    forcedStatus = "fail";
   }
   if (issueKinds.includes("indicator_handle_copybuffer")) {
     diagnostics.push("MQL4-style indicator call detected. In MQL5, create indicator handles and read values with CopyBuffer.");
-    score -= 14;
+    score -= 30;
+    forcedStatus = "fail";
   }
   if (issueKinds.includes("history_deals")) {
     diagnostics.push("History/deal access issue detected. Use HistorySelect, HistoryDealGetTicket, and HistoryDealGetInteger/Double/String instead of duplicate HistoryDeals includes or MT4-style helpers.");
-    score -= 12;
+    score -= 30;
+    forcedStatus = "fail";
   }
   if (issueKinds.includes("invalid_volume")) {
     diagnostics.push("Invalid volume risk detected. Normalize lots with SYMBOL_VOLUME_MIN, SYMBOL_VOLUME_MAX, SYMBOL_VOLUME_STEP, and reject 0.00 or off-step volumes.");
@@ -95,7 +100,7 @@ export function compileCheck(code: string): WorkerCheck {
   if (diagnostics.length === 0) diagnostics.push("Static compile pre-check passed. Run MetaEditor before live use.");
 
   return {
-    status: score >= 82 ? "pass" : score >= 60 ? "warning" : "fail",
+    status: forcedStatus || (score >= 82 ? "pass" : score >= 60 ? "warning" : "fail"),
     score: Math.max(1, score),
     diagnostics,
   };

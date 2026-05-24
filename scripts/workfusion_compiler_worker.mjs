@@ -205,6 +205,7 @@ function compileCheck(code) {
   const diagnostics = [];
   const source = String(code || "");
   let score = 100;
+  let forcedStatus = null;
   if (source.trim().length < 5000) {
     diagnostics.push("Code is too short to be a complete EA.");
     score -= 45;
@@ -245,9 +246,38 @@ function compileCheck(code) {
     diagnostics.push("No max-trades-per-day guard found.");
     score -= 10;
   }
+
+  const usesCTrade = /\bCTrade\b/u.test(source) || /\btrade\.(Buy|Sell|PositionModify|PositionClose|BuyLimit|SellLimit)\s*\(/u.test(source);
+  const missingTradeInclude = usesCTrade && !/#include\s*[<"]Trade[\\/]+Trade\.mqh[>"]/iu.test(source);
+  const missingTradeObject = /\btrade\.(Buy|Sell|PositionModify|PositionClose|BuyLimit|SellLimit)\s*\(/u.test(source) && !/\bCTrade\s+trade\s*;/u.test(source);
+  const mt4ApiInMq5 = /\b(OP_BUY|OP_SELL|OP_BUYLIMIT|OP_SELLLIMIT|MarketInfo\s*\(|RefreshRates\s*\(|OrderSelect\s*\(|OrdersTotal\s*\()/u.test(source);
+  const mql4StyleIndicator = /\bi(MA|RSI|Stochastic|MACD|Bands)\s*\([^;\n]*(?:,[^;\n]*){6,}\)/u.test(source);
+  const brokenHistoryApi = /HistoryDeals\.mqh|MqlDeal\b|\bDealGet(Integer|Double|String)\b|HistoryDealGetStruct/u.test(source);
+
+  if (missingTradeInclude || missingTradeObject) {
+    diagnostics.push("Compile-critical CTrade setup issue detected. Add #include <Trade/Trade.mqh> and declare CTrade trade; before calling trade.Buy/trade.Sell.");
+    score -= 38;
+    forcedStatus = "fail";
+  }
+  if (mt4ApiInMq5) {
+    diagnostics.push("Compile-critical MT4-style API detected in an MQ5 compile path. Replace OP_BUY/OP_SELL/MarketInfo/old order loops with MQL5 CTrade or MqlTradeRequest APIs.");
+    score -= 38;
+    forcedStatus = "fail";
+  }
+  if (mql4StyleIndicator) {
+    diagnostics.push("Compile-critical MQL4-style indicator call detected. In MQL5, create indicator handles and read values with CopyBuffer.");
+    score -= 30;
+    forcedStatus = "fail";
+  }
+  if (brokenHistoryApi) {
+    diagnostics.push("Compile-critical non-standard deal-history API detected. Use HistorySelect, HistoryDealGetTicket, and HistoryDealGetInteger/Double/String.");
+    score -= 30;
+    forcedStatus = "fail";
+  }
+
   if (diagnostics.length === 0) diagnostics.push("Static compile pre-check passed. Run MetaEditor before live use.");
   return {
-    status: score >= 82 ? "pass" : score >= 60 ? "warning" : "fail",
+    status: forcedStatus || (score >= 82 ? "pass" : score >= 60 ? "warning" : "fail"),
     score: Math.max(1, score),
     diagnostics,
   };

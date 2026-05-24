@@ -442,6 +442,31 @@ await check("worker compile precheck responds", async () => {
   return `${data.worker} ${data.status || "compile checked"}`;
 });
 
+await check("worker compile rejects CTrade undeclared identifier setup", async () => {
+  const brokenCTrade = `#property strict
+input double RiskPerTradePct=0.5;
+input int StopLossPoints=300;
+input int TakeProfitPoints=600;
+input int MaxDailyLossPct=2;
+input int MaxSpreadPoints=45;
+input int MaxTradesPerDay=3;
+int tradesToday=0;
+int OnInit(){return INIT_SUCCEEDED;}
+void OnTick(){ if(RiskGatePasses()) trade.Buy(CalculateLotSize(StopLossPoints), _Symbol); }
+bool RiskGatePasses(){return true;}
+double CalculateLotSize(int stopPoints){return NormalizeVolume(0.10);}
+double NormalizeVolume(double lots){return lots;}
+`.padEnd(5200, " ");
+  const { response, data } = await request("POST", "/api/workers/compile", {
+    body: { code: brokenCTrade, platform: "mt5", filename: "qa-broken-ctrade.mq5" },
+  });
+  assert(response.ok, `compile ${response.status}`);
+  assert(data.status === "fail", `expected fail, got ${data.status}`);
+  assert(data.compiled === false, "broken CTrade setup should not compile");
+  assert((data.diagnostics || []).join(" ").includes("CTrade"), "missing CTrade diagnostic");
+  return `${data.worker} blocked compile-critical CTrade setup`;
+});
+
 await check("worker backtest estimate responds", async () => {
   const { response, data } = await request("POST", "/api/workers/backtest", { body: { code: "input double RiskPerTradePct=0.5;", idea: "XAUUSD breakout" } });
   assert(response.ok, `backtest ${response.status}`);
