@@ -22,6 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const activationAction = String(req.body?.activationAction || "").trim().slice(0, 120);
   const reply = String(req.body?.reply || "").trim().slice(0, 1200);
   const isActivatedFollowup = source === "activated_user_followup";
+  const isTrialRequest = leadStatus === "trial_requested" || source === "activated_trial_request" || cta === "activated_trial_demo_request";
   const attribution = attributionFrom({
     referrer,
     url,
@@ -46,9 +47,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     consent,
     consentText: CONSENT_TEXT,
     userAgent: req.headers["user-agent"],
-    stage: isActivatedFollowup ? "researching" : "new",
-    score: isActivatedFollowup ? 70 : 0,
-    notes: isActivatedFollowup
+    stage: isTrialRequest ? "trial" : isActivatedFollowup ? "researching" : "new",
+    score: isTrialRequest ? 85 : isActivatedFollowup ? 70 : 0,
+    notes: isTrialRequest
+      ? [
+        "Trial/demo requested after useful output.",
+        activationFeature ? `Feature: ${activationFeature}.` : "",
+        activationAction ? `Action: ${activationAction}.` : "",
+        reply ? `Reply: ${reply}` : "",
+      ].filter(Boolean).join(" ")
+      : isActivatedFollowup
       ? [
         "Activated-user follow-up requested.",
         activationFeature ? `Feature: ${activationFeature}.` : "",
@@ -65,7 +73,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       activationFeature,
       activationAction,
       reply,
-      followupQuestion: isActivatedFollowup ? "Want a free workflow review or help with the next compiler error?" : "",
+      followupQuestion: isTrialRequest
+        ? "Want a manual trial/demo review of this workflow?"
+        : isActivatedFollowup
+          ? "Want a free workflow review or help with the next compiler error?"
+          : "",
       sourceTag: attribution.sourceTag,
       conversionPath: attribution.conversionPath,
       referrer,

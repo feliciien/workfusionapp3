@@ -216,6 +216,27 @@ const commonMqlProblems = [
   },
 ];
 
+const compilerTrustProof = [
+  {
+    label: "Before",
+    title: "Typical blocking error",
+    body: "MetaEditor stops on the first structural issue, so random edits usually create more noise.",
+    code: "undeclared identifier 'trade'\nwrong parameters count\n#include <Trade/Trade.mqh> missing or CTrade trade not declared",
+  },
+  {
+    label: "After",
+    title: "Expected repair pattern",
+    body: "Workfusion keeps the fix explicit: include the trade library, declare the trade object, and preserve risk checks.",
+    code: "#include <Trade/Trade.mqh>\nCTrade trade;\nif(!trade.Buy(lots,_Symbol)) Print(trade.ResultRetcode());",
+  },
+  {
+    label: "Gate",
+    title: "Compile trust check",
+    body: "The output is not marketed as production-ready. It must pass static checks and, when available, MetaEditor worker compilation.",
+    code: "static_precheck -> remote MetaEditor worker -> .ex5 artifact when compiler passes",
+  },
+];
+
 function getGuestId() {
   const key = "workfusion_guest_id";
   try {
@@ -283,6 +304,9 @@ function activatedFollowupFor(result?: TradingResult | null) {
   }
   if (result.lastAction === "/api/trading/download") {
     return { feature: "download", action: result.lastActionLabel || "Download", intent: "ea_draft" };
+  }
+  if (result.lastAction === "/api/workers/compile" && result.compiled === true) {
+    return { feature: "compile_check", action: result.lastActionLabel || "Compile check", intent: "compiler_error" };
   }
   return null;
 }
@@ -966,11 +990,11 @@ export default function Home() {
         body: JSON.stringify({
           email: emailToUse,
           persona: leadPersona,
-          source: "activated_user_followup",
+          source: "activated_trial_request",
           consent: true,
           intent: activatedFollowup.intent,
-          cta: "activated_user_followup_question",
-          leadStatus: "activated_followup",
+          cta: "activated_trial_demo_request",
+          leadStatus: "trial_requested",
           page: typeof window !== "undefined" ? window.location.pathname : "/",
           referrer: typeof window !== "undefined" ? document.referrer : "",
           url: typeof window !== "undefined" ? window.location.href : "",
@@ -978,7 +1002,7 @@ export default function Home() {
           conversionPath: attribution.conversionPath,
           activationFeature: activatedFollowup.feature,
           activationAction: activatedFollowup.action,
-          reply: followupReply || "Requested free workflow review or next compiler-error help.",
+          reply: followupReply || "Requested trial/demo workflow review after useful output.",
         }),
       });
       const data = await response.json();
@@ -991,17 +1015,17 @@ export default function Home() {
 
       setFollowupStatus({
         status: "success",
-        message: "Saved in CRM. This user is tagged for manual workflow review.",
+        message: "Saved in CRM as a trial/demo request.",
       });
       setFollowupReply("");
-      trackUsageEvent("activated_user_to_lead_conversion", "activated_user_followup", {
+      trackUsageEvent("activated_user_to_trial_request", "activated_trial_request", {
         activationFeature: activatedFollowup.feature,
         activationAction: activatedFollowup.action,
         intent: activatedFollowup.intent,
-        source: "activated_user_followup",
+        source: "activated_trial_request",
         hasReply: Boolean(followupReply.trim()),
       }).catch(() => undefined);
-      notify({ tone: "success", title: "Follow-up saved", body: "The request is now in the CRM." });
+      notify({ tone: "success", title: "Trial request saved", body: "The request is now in the CRM trial stage." });
     } catch {
       setFollowupStatus({ status: "error", message: "Network request failed while saving follow-up." });
       notify({ tone: "error", title: "Follow-up failed", body: "Network request failed." });
@@ -1205,6 +1229,38 @@ export default function Home() {
               <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 py-14">
+        <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-300">Compiler trust loop</p>
+            <h2 className="mt-2 text-3xl font-semibold">Show the repair path before asking users to pay.</h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-zinc-400">
+            Compiler quality is the current trust gate. Workfusion makes the first error, expected fix, and compile evidence visible before the user upgrades.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {compilerTrustProof.map((item) => (
+            <article key={item.label} className="rounded-lg border border-white/10 bg-zinc-950 p-5">
+              <p className="w-fit rounded-lg border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">
+                {item.label}
+              </p>
+              <h3 className="mt-5 text-xl font-semibold">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{item.body}</p>
+              <pre className="mt-4 overflow-auto rounded-lg border border-white/10 bg-[#101112] p-3 font-mono text-xs leading-5 text-zinc-300">
+                {item.code}
+              </pre>
+            </article>
+          ))}
+        </div>
+        <div className="mt-5 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4">
+          <p className="text-sm font-semibold text-emerald-100">Conversion rule</p>
+          <p className="mt-2 text-sm leading-6 text-emerald-50/90">
+            After a useful output, the next CTA is a manual trial/demo review. That creates a measurable CRM trial request instead of another generic lead.
+          </p>
         </div>
       </section>
 
@@ -1453,9 +1509,9 @@ export default function Home() {
               </div>
               {activatedFollowup && (
                 <div className="mt-4 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4">
-                  <p className="text-sm font-semibold text-emerald-100">Want a free workflow review or help with the next compiler error?</p>
+                  <p className="text-sm font-semibold text-emerald-100">Want a manual trial/demo review of this workflow?</p>
                   <p className="mt-2 text-sm leading-6 text-emerald-50/90">
-                    Optional. This tags your request in the CRM after {activatedFollowup.action.toLowerCase()} so I can follow up manually with the next useful step.
+                    Optional. This moves the request into the CRM trial stage after {activatedFollowup.action.toLowerCase()} so I can follow up with one concrete next step.
                   </p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
                     <input
@@ -1467,7 +1523,7 @@ export default function Home() {
                     <input
                       value={followupReply}
                       onChange={(event) => setFollowupReply(event.target.value)}
-                      placeholder="What should I review next? Compiler error, EA brief, download, or risk check."
+                      placeholder="What should the trial/demo cover? Compiler error, EA brief, download, or risk check."
                       className="w-full rounded-lg border border-emerald-300/20 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
                     />
                   </div>
@@ -1478,14 +1534,14 @@ export default function Home() {
                       type="checkbox"
                       className="mt-1 accent-emerald-300"
                     />
-                    I agree to receive manual Workfusion follow-up about this EA workflow. No spam, no broker access, no trading credentials, no profit promises.
+                    I agree to receive manual Workfusion trial/demo follow-up about this EA workflow. No spam, no broker access, no trading credentials, no profit promises.
                   </label>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                     <p className={followupStatus.status === "error" ? "text-xs text-rose-300" : followupStatus.status === "success" ? "text-xs text-emerald-200" : "text-xs text-emerald-50/70"}>
                       {followupStatus.message}
                     </p>
                     <Button disabled={followupStatus.status === "loading"} onClick={submitActivatedFollowup} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
-                      Request review
+                      Request trial/demo
                     </Button>
                   </div>
                 </div>
