@@ -120,6 +120,19 @@ const stages = ["new", "researching", "contacted", "trial", "customer", "nurture
 const supportStatuses = ["open", "replied", "blocked", "closed"];
 const blockerTags = ["none", "compiler_error", "generated_code_quality", "backtest_confusion", "billing", "login", "download", "mobile", "missing_feature", "ux_confusion"];
 
+async function readApiPayload<T>(response: Response, fallback: string): Promise<T & { error?: string }> {
+  const text = await response.text();
+  if (!text) return {} as T & { error?: string };
+  try {
+    return JSON.parse(text) as T & { error?: string };
+  } catch {
+    const detail = text.trim().replace(/\s+/g, " ").slice(0, 180);
+    return {
+      error: response.ok ? fallback : `HTTP ${response.status}: ${detail || fallback}`,
+    } as T & { error?: string };
+  }
+}
+
 function conversionRate(numerator = 0, denominator = 0) {
   if (!denominator) return 0;
   return Math.round((numerator / denominator) * 1000) / 10;
@@ -146,7 +159,7 @@ export function GrowthCommandCenter() {
       const response = await fetch("/api/admin/growth", {
         headers: nextToken ? { "x-workfusion-admin-token": nextToken } : undefined,
       });
-      const data = await response.json();
+      const data = await readApiPayload<GrowthSnapshot>(response, "Growth load failed.");
       if (!response.ok || data.error) {
         setStatus(data.error || "Growth load failed.");
         return;
@@ -172,9 +185,13 @@ export function GrowthCommandCenter() {
           ...(token ? { "x-workfusion-admin-token": token } : {}),
         },
       });
-      const data = await response.json();
+      const data = await readApiPayload<{ intelligence?: GrowthIntelligence }>(response, "Growth intelligence failed.");
       if (!response.ok || data.error) {
         setStatus(data.error || "Growth intelligence failed.");
+        return;
+      }
+      if (!data.intelligence) {
+        setStatus("Growth intelligence failed: empty response.");
         return;
       }
       setIntelligence(data.intelligence);

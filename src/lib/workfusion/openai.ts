@@ -202,7 +202,7 @@ export async function analyzeGrowthIntelligence(telemetry: GrowthIntelligenceTel
   }
 
   const controller = new AbortController();
-  const timeoutMs = Number(process.env.WORKFUSION_GROWTH_OPENAI_TIMEOUT_MS || process.env.WORKFUSION_OPENAI_TIMEOUT_MS || 60000);
+  const timeoutMs = Number(process.env.WORKFUSION_GROWTH_OPENAI_TIMEOUT_MS || process.env.WORKFUSION_OPENAI_TIMEOUT_MS || 20000);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -213,7 +213,7 @@ export async function analyzeGrowthIntelligence(telemetry: GrowthIntelligenceTel
         verbosity: "medium",
         format: growthIntelligenceTextFormat,
       },
-      max_output_tokens: 7000,
+      max_output_tokens: 2800,
       input: [
         {
           role: "system",
