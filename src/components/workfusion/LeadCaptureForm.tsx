@@ -57,6 +57,7 @@ export function LeadCaptureForm({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(persona);
   const [intent, setIntent] = useState(defaultIntent);
+  const lockedIntentLabel = intentOptions.find((item) => item.value === defaultIntent)?.label || "Selected workflow";
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState<FormState>({
     status: "idle",
@@ -109,7 +110,7 @@ export function LeadCaptureForm({
       </p>
       {lockIntent ? (
         <div className="mt-4 rounded-lg border border-emerald-300/30 bg-emerald-300/10 p-3 text-sm font-semibold text-emerald-100">
-          Intent locked: compiler error support
+          Intent locked: {lockedIntentLabel}
         </div>
       ) : (
         <div className="mt-4 grid gap-2 sm:grid-cols-3">

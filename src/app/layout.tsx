@@ -3,9 +3,9 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Workfusion Trading AI | MT4/MT5 EA Generator and Debugger",
+  title: "Workfusion Trading AI | Build, Debug and Govern MT4/MT5 EAs",
   description:
-    "Generate, debug, risk-check, and optimize MT4/MT5 Expert Advisors with prop-firm guardrails.",
+    "Build, debug, and govern MT4/MT5 Expert Advisors with compiler support, prop-firm payout readiness, drawdown buffers, and PDF governance reports.",
   applicationName: "Workfusion Trading AI",
   keywords: [
     "MT4 EA generator",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://www.workfusionapp.com"),
   openGraph: {
     title: "Workfusion Trading AI",
-    description: "Build safer Expert Advisors with EA generation, debugging, and risk scoring.",
+    description: "Build, debug, and govern MT4/MT5 Expert Advisors with payout readiness and risk reporting.",
     url: "https://www.workfusionapp.com",
     siteName: "Workfusion Trading AI",
     type: "website",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Workfusion Trading AI",
-    description: "Build safer Expert Advisors with a risk desk built in.",
+    description: "Build, debug, and govern MT4/MT5 automation with a risk desk built in.",
     images: ["/brand/workfusion-og.svg"],
   },
   icons: {

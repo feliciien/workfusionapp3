@@ -12,6 +12,8 @@ export type SeoLanding = {
   persona: string;
   bullets: string[];
   workflow: string[];
+  workflowTitle?: string;
+  workflowBody?: string;
   primaryCta?: string;
   exampleError?: {
     title: string;
@@ -126,6 +128,33 @@ export const seoLandings: Record<string, SeoLanding> = {
     faqs: [
       { question: "Does this help pass prop challenges automatically?", answer: "No. It helps review software and risk controls. Results still depend on strategy, execution, broker conditions, and testing." },
       { question: "Does it trade live?", answer: "No. Workfusion does not execute trades or manage accounts." },
+    ],
+  },
+  "prop-firm-payout-tracker": {
+    slug: "prop-firm-payout-tracker",
+    title: "Prop Firm Payout Tracker",
+    metaTitle: "Prop Firm Payout Tracker | Target, Drawdown and Payout Readiness",
+    description: "Track target remaining, daily loss buffer, total drawdown buffer, minimum trading days, open exposure, payout readiness, and PDF governance reports for prop-firm style accounts.",
+    eyebrow: "Workfusion Govern",
+    h1: "Know whether a prop-firm account should attack, defend, stop, or stay in review.",
+    audience: "For prop-style traders and EA builders who need a clear account-control view before adding risk or asking for a payout.",
+    problem: "Most dashboards show balance and PnL, but they do not explain how much target remains, how much drawdown buffer is left, whether minimum trading days are done, or whether open exposure blocks a payout review.",
+    outcome: "Workfusion Govern converts account state into payout readiness, warnings, a human-readable status, and an exportable PDF report without broker credentials or live trading access.",
+    source: "seo_prop_firm_payout_tracker",
+    persona: "prop_trader",
+    bullets: ["Track target remaining and progress", "Calculate daily loss and total drawdown buffer", "Check minimum trading days and open exposure", "Export a governance PDF for review"],
+    workflow: ["Enter account size, equity, daily PnL, days, and positions", "Select or customize the firm rule profile", "Classify status as attack, defend, stop, or review", "Export the PDF report before changing risk"],
+    workflowTitle: "From account snapshot to payout-governance report.",
+    workflowBody: "The tracker is deliberately separate from execution. It helps builders review account state and prop-style rules before any manual MT4/MT5 decision.",
+    primaryCta: "Check payout readiness",
+    leadCtaTitle: "Send me the payout tracker workflow",
+    leadCtaBody: "Opt in if you want the Workfusion Govern path: target remaining, drawdown buffer, trading days, exposure, warnings, and PDF reports.",
+    leadCtaButton: "Track govern interest",
+    lockIntent: true,
+    faqs: [
+      { question: "Does the payout tracker trade for me?", answer: "No. It does not connect to brokers, execute trades, or manage accounts. It is a governance and reporting workflow." },
+      { question: "Can it guarantee a prop payout?", answer: "No. It shows rule distance, drawdown buffer, exposure, and readiness. The user remains responsible for firm rules and trading decisions." },
+      { question: "Can I use it with MT4 or MT5?", answer: "Yes. The concept is platform-neutral: use account snapshots, closed-trade data, and prop-firm rules from the workflow you already use." },
     ],
   },
   "mql5-code-review": {

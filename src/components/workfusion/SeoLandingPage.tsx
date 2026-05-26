@@ -3,6 +3,12 @@ import { PageEventTracker } from "./PageEventTracker";
 import type { SeoLanding } from "@/lib/workfusion/seo-pages";
 
 export function SeoLandingPage({ page }: { page: SeoLanding }) {
+  const defaultIntent = page.slug.includes("risk") || page.slug.includes("payout") || page.slug.includes("govern")
+    ? "risk_check"
+    : page.slug.includes("generator")
+      ? "ea_draft"
+      : "compiler_error";
+
   return (
     <main className="min-h-screen bg-[#101112] text-white">
       <PageEventTracker path={`/${page.slug}`} />
@@ -14,6 +20,7 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
           </a>
           <nav className="flex flex-wrap items-center gap-3 text-sm text-zinc-300">
             <a href="/#console" className="hover:text-white">Console</a>
+            <a href="/#govern" className="hover:text-white">Govern</a>
             <a href="/pricing" className="hover:text-white">Pricing</a>
             <a href="/resources" className="hover:text-white">Resources</a>
             <a href="/#support" className="hover:text-white">Support</a>
@@ -51,7 +58,7 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
         <LeadCaptureForm
           source={page.source}
           persona={page.persona}
-          defaultIntent={page.slug.includes("risk") ? "risk_check" : page.slug.includes("generator") ? "ea_draft" : "compiler_error"}
+          defaultIntent={defaultIntent}
           lockIntent={page.lockIntent}
           title={page.leadCtaTitle}
           description={page.leadCtaBody}
@@ -90,9 +97,9 @@ export function SeoLandingPage({ page }: { page: SeoLanding }) {
       <section className="mx-auto grid max-w-7xl gap-8 px-5 py-14 lg:grid-cols-[0.8fr_1.2fr]">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Workflow</p>
-          <h2 className="mt-2 text-3xl font-semibold">From idea or error to a cleaner EA draft.</h2>
+          <h2 className="mt-2 text-3xl font-semibold">{page.workflowTitle || "From idea or error to a cleaner EA draft."}</h2>
           <p className="mt-4 text-sm leading-6 text-zinc-400">
-            Workfusion keeps the output tied to code quality, compiler readiness, and explicit risk review. It does not promise trading performance.
+            {page.workflowBody || "Workfusion keeps the output tied to code quality, compiler readiness, and explicit risk review. It does not promise trading performance."}
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
