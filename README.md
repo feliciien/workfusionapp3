@@ -1,12 +1,14 @@
 # Workfusion Trading AI
 
-Workfusion Trading AI is a SaaS MVP for MT4/MT5 Expert Advisor builders.
+Workfusion Trading AI is a SaaS MVP for MT4/MT5 automation builders.
 
 It helps traders:
 
 - Generate EA drafts from plain-English strategy ideas.
 - Debug MQL4/MQL5 code and compiler errors.
+- Govern prop-firm payout readiness with target, drawdown, trading-day, exposure, and warning checks.
 - Analyze trading reports and identify risk issues.
+- Export PDF governance reports before changing risk or requesting payout review.
 - Optimize prop-firm settings before demo or live testing.
 - Download generated code artifacts.
 - Save projects through a local storage adapter.
@@ -20,6 +22,10 @@ Workfusion is a software tool. It does not manage accounts, execute trades, cust
 Core offer:
 
 > Generate, debug, and risk-check MT4/MT5 Expert Advisors for prop-firm traders.
+
+Updated offer:
+
+> Build, debug, and govern MT4/MT5 automation.
 
 ## Local Development
 
@@ -90,6 +96,8 @@ Premium activation is completed by `/api/billing/paypal/activate` after PayPal r
 - `POST /api/trading/debrief`
 - `POST /api/trading/optimize`
 - `POST /api/trading/download`
+- `POST /api/govern/payout`
+- `POST /api/govern/payout-report`
 - `POST /api/subscription/status`
 - `GET|POST /api/auth/session`
 - `GET|POST /api/projects`

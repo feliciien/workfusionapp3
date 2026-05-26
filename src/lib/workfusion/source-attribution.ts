@@ -63,6 +63,7 @@ export function conversionPathFrom(input: { path?: string; intent?: string; expl
   if (path.includes("mt5-ea-generator")) return "ea_generator";
   if (path.includes("mt4-ea-debugger")) return "mt4_debugger";
   if (path.includes("prop-firm-ea-risk-checker")) return "risk_checker";
+  if (path.includes("prop-firm-payout-tracker")) return "risk_checker";
   if (path.includes("mql5-code-review")) return "code_review";
   if (path === "/resources") return "resources_hub";
   if (path.includes("/resources/")) return "resource_guide";

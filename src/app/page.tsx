@@ -86,6 +86,15 @@ type Toast = {
   body: string;
 };
 
+type GovernResult = {
+  status?: string;
+  humanStatus?: string;
+  action?: string;
+  warnings?: string[];
+  metrics?: Record<string, number>;
+  error?: string;
+};
+
 type FormStatus = {
   status: "idle" | "loading" | "success" | "error";
   message: string;
@@ -101,14 +110,14 @@ const platforms = [
 const leadIntentOptions = [
   { value: "compiler_error", label: "Paste compiler errors" },
   { value: "ea_draft", label: "Generate EA draft" },
-  { value: "risk_check", label: "Get risk check" },
+  { value: "risk_check", label: "Govern prop risk" },
 ];
 
 const proofCards = [
-  ["Generate", "Turn a plain strategy brief into a complete MQL draft with risk controls."],
+  ["Build", "Turn a plain strategy brief into a complete MQL draft with risk controls."],
   ["Debug", "Paste compiler output and get a fixed EA replacement plus clear fix notes."],
-  ["Compile", "Use MetaEditor when configured, or show an honest static pre-check."],
-  ["Package", "Save projects, download MQL outputs, and keep a technical audit trail."],
+  ["Govern", "Track payout distance, daily loss, total drawdown, open exposure, and readiness."],
+  ["Package", "Export code, reports, and a human-readable audit trail before manual testing."],
 ];
 
 const plans = [
@@ -167,9 +176,9 @@ const entryPaths = [
   {
     intent: "risk_check",
     label: "I need prop-firm checks",
-    title: "Review risk before testing",
-    body: "Use prop mode, readiness scores, compile checks, and backtest estimates as workflow gates before any manual MT5 validation.",
-    cta: "Open risk desk",
+    title: "Govern the path to payout",
+    body: "Convert account size, equity, daily PnL, drawdown rules, days, and exposure into attack, defend, stop, or review.",
+    cta: "Open govern desk",
   },
 ];
 
@@ -180,13 +189,30 @@ const seoLinks = [
   ["/mt5-ea-generator", "MT5 EA Generator", "Turn strategy ideas into structured MQL5 Expert Advisor drafts."],
   ["/mt4-ea-debugger", "MT4 EA Debugger", "Review and clean MQL4 EA code before manual compile testing."],
   ["/prop-firm-ea-risk-checker", "Prop Firm EA Risk Checker", "Check sizing, drawdown, spread, and funding-readiness controls."],
+  ["/prop-firm-payout-tracker", "Prop Firm Payout Tracker", "Track target remaining, drawdown buffer, trading days, exposure, and payout readiness."],
   ["/mql5-code-review", "MQL5 Code Review", "Review lifecycle, trade calls, risk gates, and readiness before backtesting."],
 ];
 
 const workflowSteps = [
-  ["1", "Describe the EA", "Market, platform, prop preset, risk cap, entry style, and exit rules."],
-  ["2", "Generate or debug", "Create MQL, fix compiler errors, and inspect risk/readiness scores."],
-  ["3", "Compile and package", "Run the compiler worker when configured, save projects, and download outputs."],
+  ["1", "Build", "Market, platform, prop preset, risk cap, entry style, and exit rules."],
+  ["2", "Debug", "Fix compiler/runtime blockers and keep the full EA context attached."],
+  ["3", "Govern", "Review payout distance, daily loss, drawdown buffer, exposure, and report evidence."],
+];
+
+const governSample = {
+  firm: "fundingpips",
+  accountSize: 100000,
+  equity: 107650,
+  dailyPnl: -420,
+  tradingDays: 4,
+  openPositions: 0,
+};
+
+const governStatusCards = [
+  ["attack", "Target is close and buffers are usable. Only clean, rule-respecting opportunities deserve risk."],
+  ["defend", "The account is alive but the buffer is not comfortable. Preserve drawdown before chasing target."],
+  ["stop", "A firm or internal safety boundary is breached or too close. Stop new risk and review."],
+  ["review", "No automatic action. Check target, rules, evidence lineage, and open exposure first."],
 ];
 
 const commonMqlProblems = [
@@ -562,6 +588,8 @@ export default function Home() {
   const [followupReply, setFollowupReply] = useState("");
   const [followupConsent, setFollowupConsent] = useState(false);
   const [followupStatus, setFollowupStatus] = useState<FormStatus>({ status: "idle", message: "Optional follow-up only. No spam, no broker access, no trading promises." });
+  const [governResult, setGovernResult] = useState<GovernResult | null>(null);
+  const [governStatus, setGovernStatus] = useState<FormStatus>({ status: "idle", message: "Run a sample governance check or export the PDF report." });
 
   const payload = useMemo(() => ({ idea, market, preset, platform, propMode }), [idea, market, preset, platform, propMode]);
   const limits = result?.remaining || account?.limits || { generate: 3, optimize: 1, debrief: 1, debug: 1, download: 1 };
@@ -1032,6 +1060,87 @@ export default function Home() {
     }
   }
 
+  async function runGovernanceCheck() {
+    setGovernStatus({ status: "loading", message: "Calculating payout distance, buffers, and governance status." });
+    try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent: "risk_check",
+        conversionPath: "governance",
+      });
+      const response = await fetch("/api/govern/payout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          ...governSample,
+          page: window.location.pathname,
+          referrer: document.referrer,
+          url: window.location.href,
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        const message = data.message || data.error || "Governance check failed.";
+        setGovernStatus({ status: "error", message });
+        notify({ tone: "error", title: "Govern check failed", body: message });
+        return;
+      }
+      setGovernResult(data);
+      setGovernStatus({ status: "success", message: `${String(data.status || "review").toUpperCase()} - ${data.action || "Review required."}` });
+      notify({ tone: "success", title: "Govern check complete", body: data.humanStatus || "Governance report ready." });
+    } catch {
+      setGovernStatus({ status: "error", message: "Network request failed while running governance check." });
+      notify({ tone: "error", title: "Govern check failed", body: "Network request failed." });
+    }
+  }
+
+  async function downloadGovernancePdf() {
+    setGovernStatus({ status: "loading", message: "Exporting PDF governance report." });
+    try {
+      const attribution = attributionFrom({
+        referrer: document.referrer,
+        url: window.location.href,
+        path: window.location.pathname,
+        intent: "risk_check",
+        conversionPath: "governance_pdf",
+      });
+      const response = await fetch("/api/govern/payout-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
+        body: JSON.stringify({
+          ...governSample,
+          page: window.location.pathname,
+          referrer: document.referrer,
+          url: window.location.href,
+          sourceTag: attribution.sourceTag,
+          conversionPath: attribution.conversionPath,
+        }),
+      });
+      if (!response.ok) {
+        setGovernStatus({ status: "error", message: "PDF export failed." });
+        return;
+      }
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = "workfusion-govern-payout-report.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+      setGovernStatus({ status: "success", message: "PDF governance report exported." });
+      notify({ tone: "success", title: "PDF exported", body: "Workfusion Govern report downloaded." });
+    } catch {
+      setGovernStatus({ status: "error", message: "Network request failed while exporting PDF." });
+      notify({ tone: "error", title: "PDF export failed", body: "Network request failed." });
+    }
+  }
+
   useEffect(() => {
     refreshAccount(false);
     loadProjects(false);
@@ -1102,18 +1211,18 @@ export default function Home() {
       <section className="mx-auto grid w-full max-w-7xl gap-10 overflow-hidden px-5 pb-16 pt-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:overflow-visible">
         <div className="min-w-0 max-w-full overflow-hidden lg:overflow-visible">
           <div className="mb-6 inline-flex rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-sm font-medium text-emerald-200">
-            AI EA Generator + Debugger for MT4/MT5 traders
+            Build, debug, and govern MT4/MT5 automation
           </div>
           <h1 className="max-w-[calc(100vw-2.5rem)] break-words text-4xl font-semibold leading-[1.03] tracking-normal text-white sm:max-w-4xl sm:text-6xl xl:text-7xl">
-            <span className="block">Generate, debug,</span>
-            <span className="block">risk-check, and</span>
-            <span className="block">download EA drafts</span>
+            <span className="block">Build, debug,</span>
+            <span className="block">and govern</span>
+            <span className="block">MT4/MT5 EAs</span>
             <span className="block">from one console.</span>
           </h1>
           <p className="mt-6 max-w-[calc(100vw-2.5rem)] break-words text-lg leading-8 text-zinc-300 sm:max-w-2xl">
-            <span className="block">Describe a strategy, get structured MQL, fix compiler errors,</span>
-            <span className="block">score risk/readiness, save projects, and upgrade only when</span>
-            <span className="block">your quota or workflow needs more capacity.</span>
+            <span className="block">Generate structured MQL, fix compiler errors, track prop-firm</span>
+            <span className="block">payout readiness, export governance reports, and keep the</span>
+            <span className="block">workflow focused on software quality instead of profit claims.</span>
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button
@@ -1123,7 +1232,7 @@ export default function Home() {
               }}
               className="h-12 rounded-lg bg-emerald-300 px-6 text-base text-[#101112] hover:bg-emerald-200"
             >
-              Generate a free EA draft
+              Open the EA console
             </Button>
             <Button
               variant="outline"
@@ -1137,8 +1246,8 @@ export default function Home() {
             </Button>
           </div>
           <div className="mt-5 rounded-lg border border-emerald-300/20 bg-emerald-300/10 p-4">
-            <p className="text-sm font-semibold text-emerald-100">Paste compiler errors / Generate EA draft / Get risk check</p>
-            <p className="mt-1 text-sm leading-6 text-zinc-300">Short opt-in only. One source, one intent, one new lead status in the CRM.</p>
+            <p className="text-sm font-semibold text-emerald-100">Paste compiler errors / Generate EA draft / Govern prop risk</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-300">Short opt-in only. One source, one intent, one builder workflow in the CRM.</p>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               {leadIntentOptions.map((item) => (
                 <button
@@ -1268,10 +1377,10 @@ export default function Home() {
         <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Conversion workflow</p>
-            <h2 className="mt-2 text-3xl font-semibold">From idea to downloadable MQL in three steps.</h2>
+            <h2 className="mt-2 text-3xl font-semibold">From EA idea to governed testing workflow.</h2>
           </div>
           <p className="max-w-xl text-sm leading-6 text-zinc-400">
-            Workfusion is built around the jobs MT4/MT5 builders actually repeat: generation, debugging, compiler checks, risk review, and project packaging.
+            Workfusion is built around the jobs MT4/MT5 builders actually repeat: generation, debugging, compiler checks, payout governance, and project packaging.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -1282,6 +1391,77 @@ export default function Home() {
               <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section id="govern" className="border-y border-white/10 bg-[#151719] px-5 py-14">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Workfusion Govern</p>
+            <h2 className="mt-2 text-3xl font-semibold">Turn prop-firm pressure into a clear account status.</h2>
+            <p className="mt-4 text-sm leading-6 text-zinc-400">
+              Keep the universal layer: target remaining, daily loss, total drawdown, minimum trading days, open exposure,
+              payout readiness, warnings, and a PDF report. No broker credentials. No trading execution.
+            </p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {governStatusCards.map(([status, body]) => (
+                <div key={status} className="rounded-lg border border-white/10 bg-[#101112] p-4">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-cyan-200">{status}</p>
+                  <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-[#101112] p-5">
+            <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+              <div>
+                <p className="text-sm uppercase tracking-[0.2em] text-zinc-500">Sample payout desk</p>
+                <h3 className="mt-2 text-2xl font-semibold">FundingPips-style 100k challenge</h3>
+              </div>
+              <span className="w-fit rounded-lg bg-amber-300 px-3 py-2 text-sm font-semibold text-[#101112]">
+                {String(governResult?.status || "review").toUpperCase()}
+              </span>
+            </div>
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <MetricCard label="Target left" value={Math.max(0, Math.round(100 - ((governResult?.metrics?.targetRemainingPct ?? 2.35) / 10) * 100))} />
+              <MetricCard label="Daily buffer" value={Math.max(1, Math.round((governResult?.metrics?.dailyLossRemainingPct ?? 4.58) * 18))} />
+              <MetricCard label="DD buffer" value={Math.max(1, Math.round((governResult?.metrics?.totalLossRemainingPct ?? 17.65) * 5))} />
+            </div>
+            <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.035] p-4">
+              <p className="text-sm font-semibold text-white">{governResult?.humanStatus || "Review mode. Target is $2,350.00 away with usable total drawdown buffer."}</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">
+                {governResult?.action || "Run the sample check to classify whether this account should attack, defend, stop, or stay in review."}
+              </p>
+              <div className="mt-4 grid gap-2 text-sm text-zinc-300 sm:grid-cols-2">
+                <div className="rounded-lg border border-white/10 bg-[#101112] p-3">Equity: ${governSample.equity.toLocaleString()}</div>
+                <div className="rounded-lg border border-white/10 bg-[#101112] p-3">Daily PnL: ${governSample.dailyPnl.toLocaleString()}</div>
+                <div className="rounded-lg border border-white/10 bg-[#101112] p-3">Days: {governSample.tradingDays}/3</div>
+                <div className="rounded-lg border border-white/10 bg-[#101112] p-3">Open positions: {governSample.openPositions}</div>
+              </div>
+            </div>
+            {governResult?.warnings && governResult.warnings.length > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-300/20 bg-amber-300/10 p-4">
+                <p className="text-sm font-semibold text-amber-100">Warnings</p>
+                <ul className="mt-2 grid gap-1 text-sm leading-6 text-amber-50/90">
+                  {governResult.warnings.map((warning) => <li key={warning}>- {warning}</li>)}
+                </ul>
+              </div>
+            )}
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button disabled={governStatus.status === "loading"} onClick={runGovernanceCheck} className="rounded-lg bg-emerald-300 text-[#101112] hover:bg-emerald-200">
+                Run govern check
+              </Button>
+              <Button disabled={governStatus.status === "loading"} onClick={downloadGovernancePdf} variant="outline" className="rounded-lg border-zinc-700 bg-zinc-950 text-white hover:bg-zinc-900">
+                Export PDF
+              </Button>
+              <a href="/prop-firm-payout-tracker" className="inline-flex items-center rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/10">
+                Open tracker page
+              </a>
+            </div>
+            <p className={`mt-3 text-sm ${governStatus.status === "error" ? "text-rose-300" : governStatus.status === "success" ? "text-emerald-300" : "text-zinc-400"}`}>
+              {governStatus.message}
+            </p>
+          </div>
         </div>
       </section>
 
