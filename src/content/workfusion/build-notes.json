@@ -1,5 +1,25 @@
 [
   {
+    "id": "2026-05-29-growth-autopilot-ea-debugging",
+    "date": "2026-05-29",
+    "title": "What Workfusion should help EA builders fix first",
+    "summary": "The highest-intent EA problems are compiler errors, invalid stops, no-trade backtests, and unclear risk controls.",
+    "tags": [
+      "MT4",
+      "MT5",
+      "MQL debugging",
+      "EA readiness"
+    ],
+    "body": [
+      "Workfusion growth autopilot is publishing only to owned Workfusion channels by default. Third-party forums and social posts stay in a manual-review outbox unless official API posting is configured.",
+      "The product focus remains narrow: generate EA drafts, debug MQL compiler errors, score readiness, organize projects, and download MQL outputs.",
+      "The best first users are MQL developers, EA builders, prop-style traders who need risk checks, and educators who teach MetaTrader automation.",
+      "Workfusion does not trade for users, does not request broker credentials, and does not promise profitable backtests."
+    ],
+    "ctaLabel": "Open the EA builder resources",
+    "ctaHref": "/resources"
+  },
+  {
     "id": "2026-05-28-growth-autopilot-ea-debugging",
     "date": "2026-05-28",
     "title": "What Workfusion should help EA builders fix first",
