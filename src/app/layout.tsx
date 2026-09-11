@@ -3,32 +3,36 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Workfusion Trading AI | Build, Debug and Govern MT4/MT5 EAs",
+  title: "WorkFusionApp | Proprietary Trading Evaluation & Funding",
   description:
-    "Build, debug, and govern MT4/MT5 Expert Advisors with compiler support, prop-firm payout readiness, drawdown buffers, and PDF governance reports.",
-  applicationName: "Workfusion Trading AI",
+    "WorkFusionApp is an AI-powered proprietary trading evaluation and funding firm. Sell trading evaluations, fund proven traders, and discover quantitative talent for BoltIQ Capital.",
+  applicationName: "WorkFusionApp",
   keywords: [
-    "MT4 EA generator",
-    "MT5 EA generator",
-    "MQL5 debugger",
-    "Expert Advisor builder",
-    "FTMO risk checker",
-    "prop firm trading tools",
+    "proprietary trading firm",
+    "trading challenge",
+    "prop firm evaluation",
+    "funded trader program",
+    "quantitative talent discovery",
+    "trading evaluation platform",
+    "BoltIQ Capital",
+    "trading assessment",
+    "funded accounts",
+    "trading profit share"
   ],
   metadataBase: new URL("https://www.workfusionapp.com"),
   openGraph: {
-    title: "Workfusion Trading AI",
-    description: "Build, debug, and govern MT4/MT5 Expert Advisors with payout readiness and risk reporting.",
+    title: "WorkFusionApp | Proprietary Trading Evaluation & Funding",
+    description: "WorkFusionApp is an AI-powered proprietary trading evaluation and funding firm built to identify disciplined traders, fund proven performance, and develop quantitative trading talent.",
     url: "https://www.workfusionapp.com",
-    siteName: "Workfusion Trading AI",
+    siteName: "WorkFusionApp",
     type: "website",
-    images: ["/brand/workfusion-og.svg"],
+    images: ["/brand/workfusion-mark.svg"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Workfusion Trading AI",
-    description: "Build, debug, and govern MT4/MT5 automation with a risk desk built in.",
-    images: ["/brand/workfusion-og.svg"],
+    title: "WorkFusionApp | Proprietary Trading Evaluation & Funding",
+    description: "WorkFusionApp evaluates traders through structured challenges, funds proven performers, and identifies elite talent for quantitative opportunities.",
+    images: ["/brand/workfusion-mark.svg"],
   },
   icons: {
     icon: "/brand/workfusion-mark.svg",
@@ -36,11 +40,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>

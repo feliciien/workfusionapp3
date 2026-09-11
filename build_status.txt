@@ -1,0 +1,1 @@
+Build successful. The prop firm platform is now ready for testing.

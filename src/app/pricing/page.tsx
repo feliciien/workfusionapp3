@@ -1,430 +1,457 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { attributionFrom } from "@/lib/workfusion/source-attribution";
+import { useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
-type CheckoutState = {
-  plan?: string;
-  status: "idle" | "loading" | "success" | "error";
-  message: string;
-};
-
-type AccountState = {
-  authenticated?: boolean;
-  plan?: string;
-  user?: {
-    email?: string;
-  };
-};
-
-const plans = [
-  {
-    name: "Free",
-    key: "free",
-    price: "$0",
-    cadence: "forever",
-    badge: "Try the workflow",
-    description: "For checking whether Workfusion fits your EA build process.",
-    outcome: "Generate a first draft, test the risk desk, and inspect the output quality.",
-    features: ["3 EA generations", "1 optimizer run", "1 report debrief", "1 EA debug", "1 download"],
-    cta: "Use free console",
-  },
-  {
-    name: "Starter",
-    key: "starter",
-    price: "$29",
-    cadence: "per month",
-    badge: "First paid plan",
-    description: "For solo traders building and fixing MT4/MT5 prototypes.",
-    outcome: "Enough quota to iterate on several EA ideas without hitting the free wall.",
-    features: ["30 EA generations", "20 EA debugs", "20 downloads", "Prop-firm risk checks", "Saved project history"],
-    cta: "Start Starter",
-  },
-  {
-    name: "Pro",
-    key: "pro",
-    price: "$79",
-    cadence: "per month",
-    badge: "Recommended",
-    description: "For active EA builders who need generation, debugging, reports, and compiler checks.",
-    outcome: "The practical default when you are working on real prop-firm EA workflows.",
-    features: ["150 EA generations", "150 EA debugs", "Full optimizer", "Report analyzer", "Advanced risk memo"],
-    cta: "Start Pro",
-    highlight: true,
-  },
-  {
-    name: "Studio",
-    key: "studio",
-    price: "$199",
-    cadence: "per month",
-    badge: "Teams and labs",
-    description: "For agencies, educators, and trading labs managing multiple EA projects.",
-    outcome: "Higher quotas, team workflow, advanced QA, white-label reporting, and API access.",
-    features: ["500 EA generations", "500 EA debugs", "Team workspace", "White-label reports", "Priority support"],
-    cta: "Start Studio",
-  },
-];
-
-const comparisonRows = [
-  ["EA generation", "3", "30", "150", "500"],
-  ["Compiler debugging", "1", "20", "150", "500"],
-  ["Downloads", "1", "20", "150", "500"],
-  ["Risk/readiness scoring", "Basic", "Included", "Advanced", "Advanced"],
-  ["Best for", "Testing", "Solo builders", "Active builders", "Teams"],
-];
-
-const faqs = [
-  {
-    question: "Will Workfusion trade for me?",
-    answer: "No. Workfusion is a software assistant for EA generation, debugging, risk review, and project workflow. You still test and approve everything yourself.",
-  },
-  {
-    question: "Does a higher plan guarantee a profitable EA?",
-    answer: "No. Paid plans increase workflow capacity and tooling. They do not promise trading results, payouts, funded accounts, or investment performance.",
-  },
-  {
-    question: "Why is Pro recommended?",
-    answer: "Pro has enough generation, debug, optimization, and report capacity for real iteration. Starter is useful, but serious EA work usually needs more loops.",
-  },
-  {
-    question: "How is premium activated?",
-    answer: "PayPal returns a subscription id, Workfusion verifies it, stores the plan, and activates the premium session on the same email.",
-  },
-];
-
-function validEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+interface ChallengeConfig {
+  id: string;
+  name: string;
+  tier: string;
+  description: string;
+  accountSize: number;
+  price: number;
+  resetPrice?: number;
+  profitTargetPct: number;
+  maxDailyLossPct: number;
+  maxTotalLossPct: number;
+  minTradingDays: number;
+  maxPositionSizePct?: number;
+  maxExposurePct?: number;
+  maxLeverage?: number;
+  phaseCount: number;
+  scalingEnabled: boolean;
+  profitSplitTraderPct: number;
+  profitSplitFirmPct: number;
 }
 
-function getGuestId() {
-  const key = "workfusion_guest_id";
-  const existing = window.localStorage.getItem(key);
-  if (existing) return existing;
-  const next = crypto.randomUUID();
-  window.localStorage.setItem(key, next);
-  return next;
+const challenges: ChallengeConfig[] = [
+  {
+    id: "starter_10k",
+    name: "Starter",
+    tier: "STARTER",
+    description: "Entry-level challenge for new traders",
+    accountSize: 10000,
+    price: 99,
+    resetPrice: 49,
+    profitTargetPct: 10,
+    maxDailyLossPct: 5,
+    maxTotalLossPct: 10,
+    minTradingDays: 3,
+    maxPositionSizePct: 5,
+    maxExposurePct: 20,
+    maxLeverage: 30,
+    phaseCount: 1,
+    scalingEnabled: true,
+    profitSplitTraderPct: 80,
+    profitSplitFirmPct: 20,
+  },
+  {
+    id: "standard_25k",
+    name: "Standard",
+    tier: "STANDARD",
+    description: "Standard challenge for developing traders",
+    accountSize: 25000,
+    price: 199,
+    resetPrice: 99,
+    profitTargetPct: 10,
+    maxDailyLossPct: 5,
+    maxTotalLossPct: 10,
+    minTradingDays: 4,
+    maxPositionSizePct: 5,
+    maxExposurePct: 20,
+    maxLeverage: 30,
+    phaseCount: 2,
+    scalingEnabled: true,
+    profitSplitTraderPct: 80,
+    profitSplitFirmPct: 20,
+  },
+  {
+    id: "pro_50k",
+    name: "Pro",
+    tier: "PRO",
+    description: "Professional challenge for experienced traders",
+    accountSize: 50000,
+    price: 349,
+    resetPrice: 149,
+    profitTargetPct: 10,
+    maxDailyLossPct: 4,
+    maxTotalLossPct: 8,
+    minTradingDays: 5,
+    maxPositionSizePct: 4,
+    maxExposurePct: 15,
+    maxLeverage: 20,
+    phaseCount: 2,
+    scalingEnabled: true,
+    profitSplitTraderPct: 85,
+    profitSplitFirmPct: 15,
+  },
+  {
+    id: "advanced_100k",
+    name: "Advanced",
+    tier: "ADVANCED",
+    description: "Advanced challenge for skilled traders",
+    accountSize: 100000,
+    price: 599,
+    resetPrice: 249,
+    profitTargetPct: 8,
+    maxDailyLossPct: 3,
+    maxTotalLossPct: 6,
+    minTradingDays: 7,
+    maxPositionSizePct: 3,
+    maxExposurePct: 10,
+    maxLeverage: 15,
+    phaseCount: 2,
+    scalingEnabled: true,
+    profitSplitTraderPct: 85,
+    profitSplitFirmPct: 15,
+  },
+  {
+    id: "elite_200k",
+    name: "Elite",
+    tier: "ELITE",
+    description: "Elite challenge for expert traders",
+    accountSize: 200000,
+    price: 999,
+    resetPrice: 399,
+    profitTargetPct: 6,
+    maxDailyLossPct: 2.5,
+    maxTotalLossPct: 5,
+    minTradingDays: 10,
+    maxPositionSizePct: 2,
+    maxExposurePct: 8,
+    maxLeverage: 10,
+    phaseCount: 2,
+    scalingEnabled: true,
+    profitSplitTraderPct: 90,
+    profitSplitFirmPct: 10,
+  },
+];
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+function getTierColor(tier: string) {
+  switch (tier) {
+    case "STARTER": return "bg-blue-100 text-blue-800";
+    case "STANDARD": return "bg-green-100 text-green-800";
+    case "PRO": return "bg-purple-100 text-purple-800";
+    case "ADVANCED": return "bg-orange-100 text-orange-800";
+    case "ELITE": return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-800";
+  }
 }
 
 export default function PricingPage() {
-  const [checkout, setCheckout] = useState<CheckoutState>({
+  const [checkout, setCheckout] = useState<{
+    status: "idle" | "loading" | "success" | "error";
+    message: string;
+  }>({
     status: "idle",
-    message: "Enter your email once, choose a paid plan, and approve the subscription in PayPal.",
+    message: "Choose your challenge and start the evaluation process.",
   });
-  const [account, setAccount] = useState<AccountState | null>(null);
-  const [email, setEmail] = useState("");
-  const [ownerToken, setOwnerToken] = useState("");
 
-  async function refreshAccount() {
-    const response = await fetch("/api/subscription/status");
-    const data = await response.json();
-    setAccount(data);
-    if (data.user?.email) setEmail(data.user.email);
-  }
+  async function startCheckout(challengeId: string) {
+    const challenge = challenges.find(c => c.id === challengeId);
+    if (!challenge) return;
 
-  async function signIn() {
-    if (!validEmail(email)) {
-      setCheckout({ status: "error", message: "Enter a valid email before continuing." });
-      return;
-    }
+    setCheckout({ status: "loading", message: "Creating checkout session..." });
 
-    setCheckout({ status: "loading", message: "Attaching your Workfusion session." });
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/api/prop-firm/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ownerToken: ownerToken || undefined }),
-      });
-      const data = await response.json();
-      if (!response.ok || data.error) {
-        setCheckout({ status: "error", message: data.message || data.error || "Sign in failed." });
-        return;
-      }
-      setOwnerToken("");
-      await refreshAccount();
-      setCheckout({ status: "success", message: `Session attached to ${data.user?.email || email}.` });
-    } catch {
-      setCheckout({ status: "error", message: "Sign in request failed." });
-    }
-  }
-
-  async function startCheckout(plan: string) {
-    if (plan === "free") {
-      window.location.href = "/#console";
-      return;
-    }
-
-    if (!account?.authenticated && !validEmail(email)) {
-      setCheckout({ plan, status: "error", message: "Enter a valid email first so PayPal can attach the subscription to your account." });
-      return;
-    }
-
-    setCheckout({ plan, status: "loading", message: `Creating PayPal checkout for ${plan}.` });
-    try {
-      const attribution = attributionFrom({
-        referrer: document.referrer,
-        url: window.location.href,
-        path: window.location.pathname,
-        intent: "trial_start",
-        conversionPath: "pricing",
-      });
-      const response = await fetch("/api/billing/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-workfusion-guest-id": getGuestId() },
-        body: JSON.stringify({
-          plan,
-          provider: "paypal",
-          email,
-          ownerToken: ownerToken || undefined,
-          page: window.location.pathname,
-          referrer: document.referrer,
-          url: window.location.href,
-          sourceTag: attribution.sourceTag,
-          conversionPath: attribution.conversionPath,
+        body: JSON.stringify({ 
+          challengeId,
+          // In production, email would come from auth session
+          email: "trader@example.com",
+          mt5Login: 12345,
+          mt5Server: "DemoServer",
+          provider: "stripe"
         }),
       });
+
       const data = await response.json();
-      if (!response.ok || data.error) {
-        setCheckout({ plan, status: "error", message: data.message || data.error || "PayPal checkout failed." });
-        return;
-      }
-      if (data.sessionAttached) await refreshAccount().catch(() => undefined);
+      if (!response.ok) throw new Error(data.error || "Failed to create checkout");
+
       if (data.url) {
-        setCheckout({ plan, status: "success", message: "PayPal approval URL created. Redirecting now." });
         window.location.href = data.url;
-        return;
+      } else {
+        setCheckout({ status: "success", message: "Challenge created successfully!" });
       }
-      setCheckout({ plan, status: "success", message: data.message || "Checkout endpoint responded." });
-    } catch {
-      setCheckout({ plan, status: "error", message: "Network request failed while creating checkout." });
+    } catch (error) {
+      setCheckout({ 
+        status: "error", 
+        message: error instanceof Error ? error.message : "Checkout failed" 
+      });
     }
   }
 
-  useEffect(() => {
-    refreshAccount().catch(() => {
-      setAccount({ authenticated: false, plan: "free" });
-    });
-
-    const params = new URLSearchParams(window.location.search);
-    const paypalStatus = params.get("paypal");
-    const subscriptionId = params.get("subscription_id") || params.get("subscriptionId");
-    const plan = params.get("plan") || "pro";
-    if (paypalStatus === "cancelled") {
-      setCheckout({ plan, status: "idle", message: "PayPal checkout was cancelled. No subscription was activated." });
-      return;
-    }
-    if (paypalStatus === "success") {
-      if (!subscriptionId) {
-        setCheckout({
-          status: "error",
-          message: "PayPal returned success without a subscription id. Open PayPal dashboard or contact support to activate manually.",
-        });
-        return;
-      }
-
-      setCheckout({ plan, status: "loading", message: "Verifying PayPal subscription and activating premium." });
-      fetch("/api/billing/paypal/activate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscriptionId, plan }),
-      })
-        .then(async (response) => {
-          const data = await response.json();
-          if (!response.ok || data.error) throw new Error(data.message || data.error || "PayPal activation failed.");
-          setCheckout({ plan, status: "success", message: "PayPal subscription verified. Premium session is active." });
-          await refreshAccount();
-        })
-        .catch((error) => {
-          setCheckout({ plan, status: "error", message: error instanceof Error ? error.message : "PayPal activation failed." });
-        });
-    }
-  }, []);
-
   return (
-    <main className="min-h-screen bg-[#101112] px-5 py-8 text-white">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <a href="/" className="flex items-center gap-3">
-            <img src="/brand/workfusion-mark.svg" alt="Workfusion mark" className="h-11 w-11 rounded-lg border border-white/10 bg-[#101112]" />
+    <main className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white overflow-hidden py-16">
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-6">
+            Choose Your Challenge
+          </h1>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            Select the evaluation that matches your experience level and trading goals. 
+            All challenges include real-time risk monitoring, AI-powered analytics, and a clear path to funded capital.
+          </p>
+        </div>
+      </section>
+
+      {/* Stats Bar */}
+      <section className="py-8 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <p className="font-semibold">Workfusion Trading AI</p>
-              <p className="text-xs text-zinc-500">Pricing and checkout</p>
+              <div className="text-3xl font-bold text-blue-600">5</div>
+              <div className="text-sm text-gray-600 mt-1">Challenge Tiers</div>
             </div>
-          </a>
-          <div className="flex flex-wrap gap-2">
-            <a href="/#console" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-              Open console
-            </a>
-            <a href="/resources" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-              Resources
-            </a>
-            <a href="/legal" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/10">
-              Risk disclosure
-            </a>
-          </div>
-        </header>
-
-        <section className="mt-10 grid gap-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">AI EA Generator + Debugger</p>
-            <h1 className="mt-3 max-w-4xl text-4xl font-semibold leading-tight sm:text-6xl">
-              Choose the Workfusion plan for your MT4/MT5 build velocity.
-            </h1>
-            <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-300">
-              Generate complete EA drafts, debug compiler errors, score prop-firm risk readiness, organize projects, and download MQL outputs from one workflow.
-            </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {["No profit promise", "PayPal subscription", "Risk-first tooling"].map((item) => (
-                <div key={item} className="rounded-lg border border-white/10 bg-white/[0.035] p-4 text-sm font-semibold text-zinc-100">
-                  {item}
-                </div>
-              ))}
+            <div>
+              <div className="text-3xl font-bold text-blue-600">$10K–$200K</div>
+              <div className="text-sm text-gray-600 mt-1">Account Sizes</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-blue-600">Up to 90/10</div>
+              <div className="text-sm text-gray-600 mt-1">Profit Split</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-blue-600">AI-Powered</div>
+              <div className="text-sm text-gray-600 mt-1">Talent Discovery</div>
             </div>
           </div>
-          <div
-            className={`rounded-lg border p-5 text-sm leading-6 ${
-              checkout.status === "error"
-                ? "border-rose-400/40 bg-rose-400/10 text-rose-100"
-                : checkout.status === "success"
-                  ? "border-emerald-400/40 bg-emerald-400/10 text-emerald-100"
-                  : "border-cyan-400/40 bg-cyan-400/10 text-cyan-100"
-            }`}
-          >
-            <p className="font-semibold">Checkout status</p>
-            <p className="mt-1">{checkout.message}</p>
-          </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="mt-8 grid gap-4 rounded-lg border border-white/10 bg-zinc-950 p-5 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold text-white">1. Enter email</p>
-            <p className="mt-1 text-sm text-zinc-400">
-              {account?.authenticated ? `Signed in as ${account.user?.email}. Current plan: ${account.plan || "free"}.` : "Used for account access, premium activation, and PayPal subscription matching."}
-            </p>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-              className="rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
-            />
-            <details className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-zinc-400">
-                Founder access
-              </summary>
-              <input
-                value={ownerToken}
-                onChange={(event) => setOwnerToken(event.target.value)}
-                placeholder="Owner token"
-                type="password"
-                className="mt-3 w-full rounded-lg border border-white/10 bg-[#101112] px-3 py-3 text-sm text-white outline-none focus:border-emerald-300"
-              />
-            </details>
-          </div>
-          <button onClick={account?.authenticated ? refreshAccount : signIn} className="rounded-lg bg-emerald-300 px-4 py-3 text-sm font-semibold text-[#101112]">
-            {account?.authenticated ? "Refresh account" : "Attach email"}
-          </button>
-        </section>
-
-        <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {plans.map((plan) => (
-            <article
-              key={plan.name}
-              className={`flex min-h-full flex-col rounded-lg border p-5 ${
-                plan.highlight
-                  ? "border-emerald-300 bg-emerald-300 text-[#101112] shadow-2xl shadow-emerald-500/20"
-                  : "border-white/10 bg-zinc-950"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold opacity-80">{plan.badge}</p>
-                  <h2 className="mt-1 text-2xl font-semibold">{plan.name}</h2>
-                </div>
-                {plan.highlight && <span className="rounded-lg bg-[#101112] px-2 py-1 text-xs font-semibold text-white">Best fit</span>}
-              </div>
-              <div className="mt-5 flex items-end gap-2">
-                <p className="text-5xl font-semibold">{plan.price}</p>
-                <p className={`pb-2 text-sm ${plan.highlight ? "text-zinc-800" : "text-zinc-500"}`}>{plan.cadence}</p>
-              </div>
-              <p className={`mt-4 text-sm leading-6 ${plan.highlight ? "text-zinc-900" : "text-zinc-400"}`}>{plan.description}</p>
-              <p className={`mt-3 rounded-lg p-3 text-sm leading-6 ${plan.highlight ? "bg-[#101112]/10 text-zinc-950" : "bg-white/[0.04] text-zinc-300"}`}>
-                {plan.outcome}
-              </p>
-              <ul className={`mt-5 flex-1 space-y-2 text-sm ${plan.highlight ? "text-zinc-900" : "text-zinc-300"}`}>
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex gap-2">
-                    <span aria-hidden="true">-</span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                disabled={checkout.status === "loading"}
-                onClick={() => startCheckout(plan.key)}
-                className={`mt-6 w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60 ${
-                  plan.highlight
-                    ? "bg-[#101112] text-white"
-                    : "bg-white text-[#101112]"
-                }`}
+      {/* Challenges Grid */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {challenges.map((challenge) => (
+              <article
+                key={challenge.id}
+                className="flex flex-col h-full rounded-xl border bg-white shadow-lg hover:shadow-xl transition-shadow"
               >
-                {plan.cta}
-              </button>
-            </article>
-          ))}
-        </section>
+                <div className="p-6">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getTierColor(challenge.tier)}`}>
+                      {challenge.tier}
+                    </span>
+                    {challenge.tier === "PRO" && (
+                      <span className="inline-flex px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-semibold">
+                        Most Popular
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900">{challenge.name}</h2>
+                  <p className="mt-2 text-gray-600">{challenge.description}</p>
+                  
+                  <div className="mt-6 flex items-end gap-2">
+                    <span className="text-4xl font-bold text-gray-900">{formatCurrency(challenge.price)}</span>
+                    <span className="text-gray-500 pb-1">one-time</span>
+                  </div>
+                  
+                  <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+                    <span>${formatCurrency(challenge.accountSize)} account</span>
+                    {challenge.resetPrice && (
+                      <span className="text-orange-600">Reset: {formatCurrency(challenge.resetPrice)}</span>
+                    )}
+                  </div>
+                </div>
 
-        <section className="mt-8 overflow-hidden rounded-lg border border-white/10 bg-zinc-950">
-          <div className="border-b border-white/10 p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Compare plans</p>
-            <h2 className="mt-2 text-3xl font-semibold">Pick based on iteration volume, not hype.</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="bg-white/[0.035] text-zinc-300">
-                <tr>
-                  {["Feature", "Free", "Starter", "Pro", "Studio"].map((item) => (
-                    <th key={item} className="px-5 py-4 font-semibold">{item}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {comparisonRows.map((row) => (
-                  <tr key={row[0]} className="border-t border-white/10">
-                    {row.map((cell, index) => (
-                      <td key={`${row[0]}-${index}`} className={`px-5 py-4 ${index === 0 ? "font-semibold text-white" : "text-zinc-300"}`}>
-                        {cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                <div className="px-6 pb-4 border-t border-gray-100">
+                  <dl className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Profit Target</dt>
+                      <dd className="font-semibold text-gray-900">{challenge.profitTargetPct}%</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Max Daily Loss</dt>
+                      <dd className="font-semibold text-gray-900">{challenge.maxDailyLossPct}%</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Max Drawdown</dt>
+                      <dd className="font-semibold text-gray-900">{challenge.maxTotalLossPct}%</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Min Trading Days</dt>
+                      <dd className="font-semibold text-gray-900">{challenge.minTradingDays}</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt className="text-gray-500">Profit Split</dt>
+                      <dd className="font-semibold text-gray-900">
+                        {challenge.profitSplitTraderPct}% / {challenge.profitSplitFirmPct}%
+                      </dd>
+                    </div>
+                    {challenge.phaseCount > 1 && (
+                      <div className="flex justify-between">
+                        <dt className="text-gray-500">Phases</dt>
+                        <dd className="font-semibold text-gray-900">{challenge.phaseCount}-Phase</dd>
+                      </div>
+                    )}
+                    {challenge.scalingEnabled && (
+                      <div className="flex justify-between text-green-600">
+                        <dt className="text-green-500">Scaling</dt>
+                        <dd className="font-semibold">Up to $500K+</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
 
-        <section className="mt-8 grid gap-4 rounded-lg border border-white/10 bg-zinc-950 p-5 md:grid-cols-3">
-          {[
-            ["Fastest first value", "Start in the console, generate or debug, then upgrade when the quota becomes the blocker."],
-            ["Clear activation", "PayPal approval returns to Workfusion, then the app verifies and activates the premium plan."],
-            ["Responsible positioning", "The product improves EA workflow quality. It does not promise profits or funded-account payouts."],
-          ].map(([title, body]) => (
-            <div key={title}>
-              <p className="font-semibold">{title}</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{body}</p>
+                <div className="p-6 pt-0">
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+                    onClick={() => startCheckout(challenge.id)}
+                    disabled={checkout.status === "loading"}
+                  >
+                    {checkout.status === "loading" ? "Creating Session..." : "Start Challenge"}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {/* Checkout Status */}
+          <div className="mt-8 max-w-xl mx-auto">
+            {checkout.status !== "idle" && (
+              <div className={`rounded-lg p-4 ${
+                checkout.status === "error" ? "bg-red-50 border border-red-200 text-red-800" :
+                checkout.status === "success" ? "bg-green-50 border border-green-200 text-green-800" :
+                "bg-blue-50 border border-blue-200 text-blue-800"
+              }`}>
+                {checkout.message}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              From Challenge to Funded Capital
+            </h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="text-center p-6 bg-white rounded-xl">
+              <div className="text-5xl mb-4">1</div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Purchase Challenge</h3>
+              <p className="text-gray-600">Select your tier, provide MT5 credentials, and get instant access</p>
             </div>
-          ))}
-        </section>
+            <div className="text-center p-6 bg-white rounded-xl">
+              <div className="text-5xl mb-4">2</div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Trade Evaluation</h3>
+              <p className="text-gray-600">Meet profit targets while respecting daily and total drawdown limits</p>
+            </div>
+            <div className="text-center p-6 bg-white rounded-xl">
+              <div className="text-5xl mb-4">3</div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Get Funded</h3>
+              <p className="text-gray-600">Receive a funded account with profit share (up to 90/10)</p>
+            </div>
+            <div className="text-center p-6 bg-white rounded-xl">
+              <div className="text-5xl mb-4">4</div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Scale & Grow</h3>
+              <p className="text-gray-600">Progress from $10K to $500K+ based on consistent performance</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <section className="mt-8 grid gap-4 lg:grid-cols-2">
-          {faqs.map((item) => (
-            <article key={item.question} className="rounded-lg border border-white/10 bg-zinc-950 p-5">
-              <h3 className="font-semibold">{item.question}</h3>
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{item.answer}</p>
-            </article>
-          ))}
-        </section>
-      </div>
+      {/* AI Subscription Tiers */}
+      <section className="py-16 bg-white border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+              AI Trading Lab Subscription
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Enhance your trading with AI-powered strategy generation, backtesting, and quantitative research tools.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="p-6 bg-gray-50 rounded-xl">
+              <h3 className="text-xl font-bold text-gray-900">Free</h3>
+              <div className="mt-4 flex items-end gap-2">
+                <span className="text-4xl font-bold text-gray-900">$0</span>
+                <span className="text-gray-500 pb-1">/month</span>
+              </div>
+              <ul className="mt-6 space-y-3 text-sm text-gray-600">
+                <li className="flex gap-2"><span>✓</span> Basic analytics</li>
+                <li className="flex gap-2"><span>✓</span> Basic risk information</li>
+                <li className="flex gap-2"><span>✓</span> Limited AI functionality</li>
+                <li className="flex gap-2"><span>✓</span> Challenge simulator (basic)</li>
+              </ul>
+            </div>
+            
+            <div className="p-6 bg-purple-900 text-white rounded-xl relative">
+              <h3 className="text-xl font-bold">Pro</h3>
+              <div className="mt-4 flex items-end gap-2">
+                <span className="text-4xl font-bold">$29</span>
+                <span className="text-purple-200 pb-1">/month</span>
+              </div>
+              <ul className="mt-6 space-y-3 text-sm text-purple-100">
+                <li className="flex gap-2"><span>✓</span> All Free features</li>
+                <li className="flex gap-2"><span>✓</span> AI strategy generation</li>
+                <li className="flex gap-2"><span>✓</span> Backtesting engine</li>
+                <li className="flex gap-2"><span>✓</span> Strategy analysis</li>
+                <li className="flex gap-2"><span>✓</span> Risk scanner</li>
+                <li className="flex gap-2"><span>✓</span> Prop-rule compatibility check</li>
+                <li className="flex gap-2"><span>✓</span> Challenge simulator (advanced)</li>
+              </ul>
+            </div>
+            
+            <div className="p-6 bg-gray-900 text-white rounded-xl">
+              <h3 className="text-xl font-bold">Quant</h3>
+              <div className="mt-4 flex items-end gap-2">
+                <span className="text-4xl font-bold">$69</span>
+                <span className="text-gray-300 pb-1">/month</span>
+              </div>
+              <ul className="mt-6 space-y-3 text-sm text-gray-300">
+                <li className="flex gap-2"><span>✓</span> All Pro features</li>
+                <li className="flex gap-2"><span>✓</span> Monte Carlo simulation</li>
+                <li className="flex gap-2"><span>✓</span> Walk-forward analysis</li>
+                <li className="flex gap-2"><span>✓</span> Robustness testing</li>
+                <li className="flex gap-2"><span>✓</span> Regime analysis</li>
+                <li className="flex gap-2"><span>✓</span> Advanced quant analytics</li>
+                <li className="flex gap-2"><span>✓</span> EA/MT5 research tools</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 bg-gray-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-6">
+            Ready to Start Your Evaluation?
+          </h2>
+          <p className="text-lg text-gray-300 mb-8 max-w-2xl mx-auto">
+            Join thousands of traders proving their skills with WorkFusion. 
+            Transparent rules, fair evaluations, and a path to professional capital.
+          </p>
+          <Link 
+            href="/prop-firm"
+            className="inline-block bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-bold py-4 px-8 rounded-lg text-lg transition-colors"
+          >
+            View All Challenges
+          </Link>
+        </div>
+      </section>
     </main>
   );
 }
