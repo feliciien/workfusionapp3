@@ -1,0 +1,17 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#101112"/>
+  <rect x="58" y="58" width="1084" height="514" rx="36" fill="#151719" stroke="#2A2E31" stroke-width="2"/>
+  <rect x="86" y="86" width="110" height="110" rx="26" fill="#101112" stroke="#2A2E31"/>
+  <path d="M112 164v-56h15l10 34 11-34h12l11 34 10-34h15v56h-15v-35l-11 35h-11l-11-35v35h-14v-35l-11 35h-11Z" fill="#6EE7B7"/>
+  <path d="M110 178h76" stroke="#67E8F9" stroke-width="8" stroke-linecap="round"/>
+  <text x="228" y="138" fill="#6EE7B7" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="5">WORKFUSION TRADING AI</text>
+  <text x="86" y="292" fill="white" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="850">Build safer EAs with</text>
+  <text x="86" y="374" fill="white" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="850">a risk desk built in.</text>
+  <text x="90" y="436" fill="#A1A1AA" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="500">Generate MQL, debug compiler issues, score prop-firm readiness, and package EA drafts.</text>
+  <rect x="86" y="486" width="214" height="56" rx="12" fill="#6EE7B7"/>
+  <text x="116" y="522" fill="#101112" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">MT4/MT5 SaaS</text>
+  <rect x="328" y="486" width="254" height="56" rx="12" fill="#67E8F9"/>
+  <text x="360" y="522" fill="#101112" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">GPT-5.5 Engine</text>
+  <rect x="610" y="486" width="250" height="56" rx="12" fill="#FCD34D"/>
+  <text x="642" y="522" fill="#101112" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">PayPal Ready</text>
+</svg>
