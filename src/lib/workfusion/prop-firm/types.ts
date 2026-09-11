@@ -180,6 +180,7 @@ export interface KycDocument {
 // ============================================================================
 
 export interface ChallengeAccount {
+  accountType: "CHALLENGE";
   id: string;
   traderId: string;
   challengeConfigId: string;
@@ -281,6 +282,7 @@ export interface RuleViolation {
 // ============================================================================
 
 export interface FundedAccount {
+  accountType: "FUNDED";
   id: string;
   traderId: string;
   challengeAccountId: string;    // The challenge that led to funding

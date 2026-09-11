@@ -1,0 +1,7 @@
+feat: Complete Phase 1 trader dashboard - fix evaluation engine accountType fields
+
+- Added accountType: CHALLENGE to ChallengeAccount interface
+- Added accountType: FUNDED to FundedAccount interface  
+- Fixed createChallengeAccount() to include accountType in return object
+- Fixed createFundedAccount() to include accountType in return object
+- Build passes successfully with all dashboard components

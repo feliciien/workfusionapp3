@@ -432,7 +432,7 @@ export class EvaluationEngine {
   ): ChallengeAccount {
     const now = new Date().toISOString();
     
-    return {
+    return { accountType: "CHALLENGE",
       id: `chal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       traderId,
       challengeConfigId: config.id,
@@ -488,7 +488,7 @@ export class EvaluationEngine {
       profitSplitFirmPct: config.profitSplitFirmPct
     };
     
-    return {
+    return { accountType: "FUNDED",
       id: `fund_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       traderId,
       challengeAccountId: challengeAccount.id,
@@ -810,6 +810,7 @@ export function getEvaluationEngine(): EvaluationEngine {
 export function resetEvaluationEngine(): void {
   evaluationEngineInstance = null;
 }
+
 
 
 
